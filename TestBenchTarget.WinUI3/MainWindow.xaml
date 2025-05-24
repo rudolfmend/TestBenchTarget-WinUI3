@@ -7,11 +7,11 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="TestBenchTarget.WinUI3">
+    Title="Main window">
 
     <Grid Padding="24">
         <Grid.Resources>
-            <local:DateFormatConverter x:Key="DateConverter"/>
+            <local:DynamicDateFormatConverter x:Key="DynamicDateConverter"/>
         </Grid.Resources>
 
         <Grid.RowDefinitions>
@@ -21,18 +21,19 @@
             <!-- Pre kontajner notifikácií -->
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="3*" MinWidth="300"/>
+            <ColumnDefinition Width="2*" MinWidth="300"/>
             <ColumnDefinition Width="1*" MinWidth="250"/>
         </Grid.ColumnDefinitions>
 
         <!-- Header -->
-        <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" 
-                    Margin="20,10,50,50">
-            <TextBlock Text="Main Window - TestBench Target" 
-                       FontSize="20"
-                       FontWeight="SemiBold"
-                       Margin="20,10"
-                       TextWrapping="Wrap"/>
+        <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" >            
+            <AppBarButton
+                x:Name="BackToStartWindowButton"
+                Icon="Back"
+                AutomationProperties.Name="Back to Start Window"
+                AutomationProperties.HelpText="Access button back to Main Window"
+                Click="BackToStartWindow_Click"/>
+            <AppBarButton/>                        
         </StackPanel>
 
         <!-- Main table -->
@@ -43,14 +44,11 @@
           AutomationProperties.Name="Data Items List"
           AutomationProperties.HelpText="Contains all added data entries. Use arrow keys to navigate and Delete key to remove selected item."          
           Grid.Row="1" Grid.Column="0"   
-          Margin="0,0,50,0"  
+          Margin="0,0,32,0"  
           Padding="20"
           CanDragItems="False"  
           IsItemClickEnabled="False"  
-          BorderBrush="Gray"
-          SelectionMode="Single"     
-          BorderThickness="0" 
-          CornerRadius="7"
+          SelectionMode="Single" 
           KeyDown="MainListView_KeyDown" >
 
             <ListView.HeaderTemplate>
@@ -92,50 +90,56 @@
                 </DataTemplate>
             </ListView.HeaderTemplate>
             <ListView.ItemTemplate>
+                
                 <DataTemplate>
-                    <Grid Padding="15,15,15,8" 
-                          BorderThickness="0, 0, 0, 1" 
-                          BorderBrush="Gray">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="{Binding DateColumnValue, Converter={StaticResource DateConverter}}"   
-                            FontSize="14"
-                            Margin="8"
-                            VerticalAlignment="Center"
-                            TextWrapping="Wrap" 
-                            Grid.Column="0"/>
-                        <TextBlock Text="{Binding ProcedureColumnValue}"   
-                            FontSize="14"
-                            Margin="8"
-                            VerticalAlignment="Center"
-                            TextWrapping="Wrap" 
-                            Grid.Column="1"/>
-                        <TextBlock Text="{Binding PointsColumnValue}"   
-                            FontSize="14"
-                            Margin="8"
-                            VerticalAlignment="Center"
-                            TextWrapping="Wrap" 
-                            Grid.Column="2"/>
-                        <TextBlock Text="{Binding DelegateColumnValue}"   
-                            FontSize="14"
-                            Margin="8"
-                            VerticalAlignment="Center"
-                            TextWrapping="Wrap" 
-                            Grid.Column="3"/>
-                    </Grid>
-                </DataTemplate>
+                        <Grid Padding="15,15,15,8" 
+                      BorderThickness="0, 0, 0, 1" 
+                      BorderBrush="Gray">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Text="{Binding FormattedDate}"   
+                                       FontSize="14"
+                                        Margin="8"
+                                        VerticalAlignment="Center"
+                                        TextWrapping="Wrap" 
+                                        Grid.Column="0"/>
+
+                            <TextBlock Text="{Binding ProcedureColumnValue}"   
+                                        FontSize="14"
+                                        Margin="8"
+                                        VerticalAlignment="Center"
+                                        TextWrapping="Wrap" 
+                                        Grid.Column="1"/>
+                            <TextBlock Text="{Binding PointsColumnValue}"   
+                                        FontSize="14"
+                                        Margin="8"
+                                        VerticalAlignment="Center"
+                                        TextWrapping="Wrap" 
+                                        Grid.Column="2"/>
+                            <TextBlock Text="{Binding DelegateColumnValue}"   
+                                        FontSize="14"
+                                        Margin="8"
+                                        VerticalAlignment="Center"
+                                        TextWrapping="Wrap" 
+                                        Grid.Column="3"/>
+                        </Grid>
+                    </DataTemplate>
+                    
             </ListView.ItemTemplate>
         </ListView>
 
         <!-- Right control panel -->
+        <!-- Upravený Right control panel s responzívnym designom -->
         <ScrollViewer Grid.Row="0" Grid.Column="1" Grid.RowSpan="2"
                       VerticalScrollMode="Auto"
                       HorizontalScrollMode="Disabled"
-                      Margin="0,70,0,0">
+                      Margin="0,10,0,0">
+            <!-- ZMENA: Znížený top margin z 70 na 10 -->
             <RelativePanel HorizontalAlignment="Stretch">
                 <!-- Form fields -->
                 <StackPanel x:Name="FormPanel" 
@@ -143,8 +147,11 @@
                             AutomationProperties.AccessibilityView="Control"
                             RelativePanel.AlignLeftWithPanel="True"
                             RelativePanel.AlignRightWithPanel="True"
-                            Spacing="16">
-                    <Grid Margin="0,0,0,15">
+                            Spacing="12">
+                    <!-- ZMENA: Znížený spacing z 16 na 12 -->
+
+                    <Grid Margin="0,0,0,10">
+                        <!-- ZMENA: Znížený bottom margin z 15 na 10 -->
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
@@ -152,17 +159,17 @@
 
                         <!-- ComboBox for date format selection -->
                         <ComboBox x:Name="DateFormatSelector" Grid.Row="0"
-              HorizontalAlignment="Stretch"
-              FontSize="16"
-              MinHeight="40"
-              Margin="0,0,0,15">
-                            <ComboBoxItem Content="DD.MM.YYYY format" Tag="dd.MM.yyyy" IsSelected="True"/>
+                                  HorizontalAlignment="Stretch"
+                                  FontSize="14"    
+                                  MinHeight="36"
+                                  Margin="0,0,0,10">
+                            <ComboBoxItem Content="DD.MM.YYYY format" Tag="dd.MM.yyyy"/>
                             <ComboBoxItem Content="MM/DD/YYYY format" Tag="MM/dd/yyyy"/>
-                            <ComboBoxItem Content="YYYY-MM-DD format" Tag="yyyy-MM-dd"/>
+                            <ComboBoxItem Content="YYYY-MM-DD format" Tag="yyyy-MM-dd" IsSelected="True"/>
                         </ComboBox>
 
                         <!-- Grid pre dátum a šípky -->
-                        <Grid Grid.Row="1" Margin="0,0,0,10">
+                        <Grid Grid.Row="1" Margin="0,0,0,8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
@@ -172,77 +179,73 @@
                             <TextBlock x:Name="DateDisplayText" Grid.Column="0"
                                   Text="{x:Bind ViewModel.SelectedDateString, Mode=OneWay}" 
                                   VerticalAlignment="Center"
-                                  FontSize="20"
+                                  FontSize="18" 
                                   Margin="8,0,0,0" 
                                   PointerWheelChanged="DateDisplay_PointerWheelChanged"/>
 
-                            <!-- StackPanel so šípkami nad sebou - 2x širšie -->
-                            <StackPanel Grid.Column="1" Margin="15,0,0,0" Width="80">
+                            <!-- StackPanel so šípkami nad sebou -->
+                            <StackPanel Grid.Column="1" Margin="15,0,0,0" Width="70">
                                 <Button x:Name="IncrementDateButton" 
                                     Content="&#xE0E4;" 
                                     FontFamily="Segoe MDL2 Assets" 
-                                    FontSize="18"
-                                    Height="30" Width="80" 
-                                    Padding="0" Margin="0,0,0,4" TabIndex="2"
+                                    FontSize="16" 
+                                    Height="28" Width="70"
+                                    Padding="0" Margin="0,0,0,3" TabIndex="2"
                                     Click="IncrementDate_Click"
                                     AutomationProperties.Name="Increment Date"
                                     ToolTipService.ToolTip="Increment Date"/>
 
                                 <Button x:Name="DecrementDateButton" 
-                                    Content="&#xE0E5;" 
-                                    FontFamily="Segoe MDL2 Assets" 
-                                    FontSize="18"
-                                    Height="30" Width="80"
-                                    Padding="0" Margin="0,4,0,0" TabIndex="3"
-                                    Click="DecrementDate_Click"
-                                    AutomationProperties.Name="Decrement Date"
-                                    ToolTipService.ToolTip="Decrement Date"/>
+                                        Content="&#xE0E5;" 
+                                        FontFamily="Segoe MDL2 Assets" 
+                                        FontSize="16"  
+                                        Height="28" Width="70"  
+                                        Padding="0" Margin="0,3,0,0" TabIndex="3" 
+                                        Click="DecrementDate_Click"
+                                        AutomationProperties.Name="Decrement Date"
+                                        ToolTipService.ToolTip="Decrement Date"/>
                             </StackPanel>
                         </Grid>
                     </Grid>
 
-                    <TextBlock x:Name="ProcedureLabel" Text="Procedure" Margin="0,15,0,8" FontSize="18"/>
+                    <TextBlock x:Name="ProcedureLabel" Text="Procedure" Margin="10,10,0,0" FontSize="16"/> 
                     <TextBox x:Name="ProcedureInput"
                              AutomationProperties.LabeledBy="{Binding ElementName=ProcedureLabel}"                             
                              Text="{x:Bind ViewModel.ProcedureText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              PlaceholderText="Enter procedure"  
-                             Margin="0,0,0,15" TabIndex="4"
-                             MinHeight="40"
-                             FontSize="16"
-                             KeyDown="TextBox_KeyDown"/>                    
-                         <!--Text="{Binding ProcedureText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"-->   
+                             Margin="0,0,0,10" TabIndex="4" 
+                             MinHeight="36" 
+                             FontSize="14" 
+                             KeyDown="TextBox_KeyDown"/>         
                     
-                    
-                    <TextBlock x:Name="PointsLabel"  Text="Points" Margin="0,15,0,8" FontSize="18"/>
+                    <TextBlock x:Name="PointsLabel"  Text="Points" Margin="10,10,0,0" FontSize="16"/> 
                     <TextBox x:Name="PointsInput"  
                              Text="{x:Bind ViewModel.PointsText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
-                             PlaceholderText="0"  
-                             Margin="0,0,0,15"  TabIndex="5"
-                             MinHeight="40"
-                             FontSize="16"
-                             TextChanged="PointsInput_TextChanged"  
+                             PlaceholderText="Enter points"  
+                             Margin="0,0,0,10"  TabIndex="5" 
+                             MinHeight="36" 
+                             FontSize="14" 
+                             GotFocus="PointsInput_GotFocus"
                              LostFocus="PointsInput_LostFocus"
+                             TextChanged="PointsInput_TextChanged"
                              KeyDown="TextBox_KeyDown"/>
-                    <!--Text="{Binding PointsText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"-->
 
-                    
-                    <TextBlock x:Name="DelegateLabel" Text="Delegate" Margin="0,15,0,8" FontSize="18"/>
+                    <TextBlock x:Name="DelegateLabel" Text="Delegate" Margin="10,10,0,0" FontSize="16"/> 
                     <TextBox x:Name="DelegateInput"
                              Text="{x:Bind ViewModel.DelegateText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              PlaceholderText="Enter delegate"  
-                             Margin="0,0,0,20" TabIndex="6"
-                             MinHeight="40"
-                             FontSize="16"
+                             Margin="0,0,0,15" TabIndex="6"    
+                             MinHeight="36"  
+                             FontSize="14" 
                              KeyDown="TextBox_KeyDown"/>
                 </StackPanel>
-                <!--Text="{Binding DelegateText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"-->
 
                 <!-- Buttons Grid - umiestnený pod FormPanel -->
                 <Grid x:Name="ButtonsGrid" 
                       RelativePanel.Below="FormPanel"
                       RelativePanel.AlignLeftWithPanel="True"
                       RelativePanel.AlignRightWithPanel="True"
-                      Margin="0,20,0,0">
+                      Margin="0,15,0,0">  
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
@@ -259,52 +262,52 @@
                         Command="{x:Bind ViewModel.AddCommand, Mode=OneWay}"  
                         x:Name="AddToTableButton"
                         HorizontalAlignment="Stretch" TabIndex="7"
-                        MinHeight="44" FontSize="16" Margin="0,0,5,10" />
+                        MinHeight="38" FontSize="14" Margin="0,4,4,8" />
 
                     <Button Content="Load data" Grid.Row="0" Grid.Column="1"
                         Command="{x:Bind ViewModel.LoadCommand, Mode=OneWay }" 
                         x:Name="LoadDataButton"
                         HorizontalAlignment="Stretch" TabIndex="8"
-                        MinHeight="44" FontSize="16" Margin="5,0,0,10" />
+                        MinHeight="38" FontSize="14" Margin="4,4,0,8" />
 
                     <!-- Row 2 -->
                     <Button Content="Save data to file" Grid.Row="1" Grid.Column="0"
                         Command="{x:Bind ViewModel.SaveCommand, Mode=OneWay }"
                         x:Name="SaveDataButton"
                         HorizontalAlignment="Stretch" TabIndex="9"
-                        MinHeight="44" FontSize="16" Margin="0,0,5,10" />
+                        MinHeight="38" FontSize="14" Margin="0,4,4,8" />
 
                     <Button Content="Delete data" Grid.Row="1" Grid.Column="1"
                         Command="{x:Bind ViewModel.DeleteCommand, Mode=OneWay }"
                         x:Name="DeleteDataButton"
                         HorizontalAlignment="Stretch" TabIndex="10"
-                        MinHeight="44" FontSize="16" Margin="5,0,0,10" />
+                        MinHeight="38" FontSize="14" Margin="4,4,0,8" />
 
                     <!-- Row 3 -->
                     <Button Content="Open folder" Grid.Row="2" Grid.Column="0"
                         Command="{x:Bind ViewModel.OpenFolderCommand, Mode=OneWay }"
                         x:Name="OpenFolderButton"
                         HorizontalAlignment="Stretch" TabIndex="11"
-                        MinHeight="44" FontSize="16" Margin="0,0,5,10" />
-
+                        MinHeight="38" FontSize="14" Margin="0,4,4,8" />
+                    
                     <Button Content="Clear form" Grid.Row="2" Grid.Column="1"
                         Command="{x:Bind ViewModel.ClearFormCommand, Mode=OneWay }"
                         x:Name="ClearFormButton"
                         HorizontalAlignment="Stretch"
-                        MinHeight="44" FontSize="16" Margin="5,0,0,10" />
+                        MinHeight="38" FontSize="14" Margin="4,4,0,8" />
 
                     <!-- Row 4 -->
                     <Button Content="Clear list" Grid.Row="3" Grid.Column="0"
                         Command="{x:Bind ViewModel.ClearListCommand, Mode=OneWay }"
                         x:Name="ClearListButton"
                         HorizontalAlignment="Stretch" TabIndex="12"
-                        MinHeight="44" FontSize="16" Margin="0,0,5,10" />
+                        MinHeight="38" FontSize="14" Margin="0,4,4,8" />
 
                     <Button Content="Export data" Grid.Row="3" Grid.Column="1"
                         Command="{x:Bind ViewModel.ExportDataCommand, Mode=OneWay }"
                         x:Name="ExportDataButton"
                         HorizontalAlignment="Stretch" TabIndex="13"
-                        MinHeight="44" FontSize="16" Margin="5,0,0,10" />
+                        MinHeight="38" FontSize="14" Margin="4,4,0,8" />
                 </Grid>
             </RelativePanel>
         </ScrollViewer>
@@ -340,7 +343,7 @@
                 </VisualState>
                 <VisualState x:Name="MediumState">
                     <VisualState.StateTriggers>
-                        <AdaptiveTrigger MinWindowWidth="640"/>
+                        <AdaptiveTrigger MinWindowWidth="680"/>
                     </VisualState.StateTriggers>
                 </VisualState>
                 <VisualState x:Name="WideState">

@@ -1,16 +1,14 @@
-﻿using Microsoft.UI.Xaml.Controls;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using Microsoft.UI.Xaml;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using Windows.Storage;
-using Windows.System;
+using Microsoft.UI.Xaml.Controls;
 using Newtonsoft.Json;
+using System;
+using System.Diagnostics;
+using System.Threading.Tasks;
 using TestBenchTarget.WinUI3.Models;
 using TestBenchTarget.WinUI3.Services;
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
-using System.Diagnostics;
+using Windows.System;
 
 namespace TestBenchTarget.WinUI3.ViewModels
 {
@@ -18,6 +16,7 @@ namespace TestBenchTarget.WinUI3.ViewModels
     {
         private readonly DataService _dataService;
         private XamlRoot? _xamlRoot;
+        private string _dateFormat = "yyyy-MM-dd";
 
         public event EventHandler<EventArgs>? ExportDataRequested;
 
@@ -35,7 +34,7 @@ namespace TestBenchTarget.WinUI3.ViewModels
             get => _selectedItem;
             set
             {
-                Debug.WriteLine($"SelectedItem setter called, new value is null: {value == null}");
+                System.Diagnostics.Debug.WriteLine($"SelectedItem setter called, new value is null: {value == null}");
                 if (SetProperty(ref _selectedItem, value))
                 {
                     // Notifikácia príkazu o možnej zmene stavu
@@ -51,31 +50,12 @@ namespace TestBenchTarget.WinUI3.ViewModels
                         DelegateText = value.DelegateColumnValue;
                     }
 
-                    Debug.WriteLine("NotifyCanExecuteChanged called on DeleteCommand");
+                    System.Diagnostics.Debug.WriteLine("NotifyCanExecuteChanged called on DeleteCommand");
                 }
             }
         }
 
-        private string _dateFormat = "dd.MM.yyyy";
-        public string DateFormat
-        {
-            get => _dateFormat;
-            set
-            {
-                if (SetProperty(ref _dateFormat, value))
-                {
-                    // Ak sa zmenil formát, preparsujeme existujúci dátum a naformátujeme ho na nový formát
-                    if (DateTime.TryParseExact(_selectedDateString, "dd.MM.yyyy", null, System.Globalization.DateTimeStyles.None, out DateTime date) ||
-                        DateTime.TryParseExact(_selectedDateString, "MM/dd/yyyy", null, System.Globalization.DateTimeStyles.None, out date) ||
-                        DateTime.TryParseExact(_selectedDateString, "yyyy-MM-dd", null, System.Globalization.DateTimeStyles.None, out date))
-                    {
-                        SelectedDateString = date.ToString(value);
-                    }
-                }
-            }
-        }
-
-        private string _selectedDateString = DateTime.Now.ToString("dd.MM.yyyy");
+        private string _selectedDateString = DateTime.Now.ToString("yyyy-MM-dd"); 
         public string SelectedDateString
         {
             get => _selectedDateString;
@@ -86,7 +66,16 @@ namespace TestBenchTarget.WinUI3.ViewModels
         public string ProcedureText
         {
             get => _procedureText;
-            set => SetProperty(ref _procedureText, value);
+            set
+            {
+                if (SetProperty(ref _procedureText, value))
+                {
+                    // KRITICKÉ: Notifikovať AddCommand o zmene
+                    AddCommand.NotifyCanExecuteChanged();
+
+                    System.Diagnostics.Debug.WriteLine($"ProcedureText changed to: '{value}'");
+                }
+            }
         }
 
         private string _pointsText = "0";
@@ -126,9 +115,9 @@ namespace TestBenchTarget.WinUI3.ViewModels
             DataItems = _dataService.DataList;
 
             // Inicializácia príkazov
-            AddCommand = new RelayCommand(AddData, CanAddData);
+            AddCommand = new RelayCommand(AddData);
             LoadCommand = new RelayCommand(LoadData);
-            SaveCommand = new RelayCommand(SaveData);
+            SaveCommand = new RelayCommand(() => SaveData(showNotification: true)); // explicitne zobrazovať notifikáciu
             DeleteCommand = new RelayCommand(Delete, CanDelete);
             OpenFolderCommand = new RelayCommand(OpenFolder);
             ClearFormCommand = new RelayCommand(ClearForm);
@@ -153,15 +142,8 @@ namespace TestBenchTarget.WinUI3.ViewModels
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error initializing data: {ex.Message}");
-                await ShowErrorInfoBar("Chyba pri inicializácii", ex.Message);
+                await ShowErrorInfoBar("Error initializing", ex.Message);
             }
-        }
-
-        // Pridaná nová metóda pre validáciu AddData príkazu
-        private bool CanAddData()
-        {
-            // Overenie, či je vyplnený aspoň postup/procedúra
-            return !string.IsNullOrWhiteSpace(ProcedureText);
         }
 
         private void AddData()
@@ -171,7 +153,7 @@ namespace TestBenchTarget.WinUI3.ViewModels
                 // Kontrola, či je procedúra zadaná
                 if (string.IsNullOrWhiteSpace(ProcedureText))
                 {
-                    ShowInfoBar("Upozornenie", "Prosím, zadajte názov procedúry.");
+                    ShowInfoBar("Warning", "Please enter a procedure name.");
                     return;
                 }
 
@@ -194,30 +176,30 @@ namespace TestBenchTarget.WinUI3.ViewModels
                     DelegateColumnValue = DelegateText
                 };
 
+                // DÔLEŽITÉ: Nastaviť FormattedDate podľa aktuálneho formátu
+                newItem.UpdateFormattedDate(_dateFormat);
+
                 // Ak je vybraná existujúca položka, aktualizujeme ju namiesto pridania novej
                 if (SelectedItem != null && DataItems.Contains(SelectedItem))
                 {
                     int index = DataItems.IndexOf(SelectedItem);
                     DataItems[index] = newItem;
-                    ShowInfoBar("Úspech", "Položka bola aktualizovaná.");
+                    ShowInfoBar(" ", "Item updated.");
                 }
                 else
                 {
                     // Pridanie položky do kolekcie
                     DataItems.Add(newItem);
-                    ShowInfoBar("Úspech", "Položka bola pridaná.");
+                    ShowInfoBar(" ", "Item added.");
                 }
 
                 // Po pridaní automaticky uložíme dáta
-                SaveData();
-
-                // Vynulovanie vstupných polí
-                ClearForm();
+                SaveData(showNotification: false);
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error adding item: {ex.Message}");
-                ShowInfoBar("Chyba", $"Nastala chyba pri pridávaní položky: {ex.Message}", InfoBarSeverity.Error);
+                ShowInfoBar("Error", $"An error occurred while adding the item: {ex.Message}", InfoBarSeverity.Error);
             }
         }
 
@@ -226,34 +208,12 @@ namespace TestBenchTarget.WinUI3.ViewModels
             try
             {
                 await _dataService.LoadDataAsync();
-                ShowInfoBar("Úspech", $"Načítaných {DataItems.Count} položiek.");
+                ShowInfoBar("", $"Loaded {DataItems.Count} položiek.");
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error loading data: {ex.Message}");
-                await ShowErrorInfoBar("Chyba pri načítaní dát", ex.Message);
-            }
-        }
-
-        private async void SaveData()
-        {
-            try
-            {
-                bool success = await _dataService.SaveDataAsync();
-                if (success)
-                {
-                    Debug.WriteLine("Data saved successfully.");
-                    DataSavedSuccessfully?.Invoke(this, EventArgs.Empty);
-                }
-                else
-                {
-                    await ShowErrorInfoBar("Chyba pri ukladaní dát", "Nepodarilo sa uložiť dáta.");
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error saving data: {ex.Message}");
-                await ShowErrorInfoBar("Chyba pri ukladaní dát", ex.Message);
+                await ShowErrorInfoBar("Error loading data", ex.Message);
             }
         }
 
@@ -266,13 +226,14 @@ namespace TestBenchTarget.WinUI3.ViewModels
                 if (SelectedItem != null)
                 {
                     DataItems.Remove(SelectedItem);
-                    ShowInfoBar("Úspech", "Položka bola odstránená.");
+                    Debug.WriteLine("Item removed from DataItems");
+                    ShowInfoBar(" ", "Item deleted.");
 
                     // Vynulovanie vstupných polí po odstránení
                     ClearForm();
 
-                    // Uloženie dát po zmazaní
-                    SaveData();
+                    // Uloženie dát po zmazaní BEZ notifikácie
+                    SaveData(showNotification: false);
 
                     Debug.WriteLine("Item deleted successfully");
                 }
@@ -280,7 +241,7 @@ namespace TestBenchTarget.WinUI3.ViewModels
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error deleting item: {ex.Message}");
-                ShowInfoBar("Chyba", $"Nastala chyba pri odstraňovaní položky: {ex.Message}", InfoBarSeverity.Error);
+                ShowInfoBar("Error", $"An error occurred while deleting the item: {ex.Message}", InfoBarSeverity.Error);
             }
         }
 
@@ -299,11 +260,11 @@ namespace TestBenchTarget.WinUI3.ViewModels
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error opening folder: {ex.Message}");
-                await ShowErrorInfoBar("Chyba pri otváraní priečinka", ex.Message);
+                await ShowErrorInfoBar("Error opening folder", ex.Message);
             }
         }
 
-        private void ShowInfoBar(string title, string message, InfoBarSeverity severity = InfoBarSeverity.Informational)
+        private static void ShowInfoBar(string title, string message, InfoBarSeverity severity = InfoBarSeverity.Informational)
         {
             // InfoBar sa zobrazí prostredníctvom funkcie v MainWindow
             // Kontrola či App.Current je typu App a bezpečný prístup k m_window
@@ -350,13 +311,15 @@ namespace TestBenchTarget.WinUI3.ViewModels
                     }
                 }
 
-                ShowInfoBar("Úspech", $"Dáta boli exportované do: {System.IO.Path.GetFileName(filePath)}");
+                //ShowInfoBar("Úspech", $"Dáta boli exportované do: {System.IO.Path.GetFileName(filePath)}");
+                ShowInfoBar("Succes", filePath, InfoBarSeverity.Success);
+                Debug.WriteLine($"Data saved to {filePath}");
                 return true;
             }
             catch (Exception ex)
             {
+                await ShowErrorInfoBar("Error while saving data", ex.Message).ConfigureAwait(false);
                 Debug.WriteLine($"Error in SaveDataAsync: {ex.Message}");
-                ShowInfoBar("Chyba", $"Nastala chyba pri exporte dát: {ex.Message}", InfoBarSeverity.Error);
                 return false;
             }
         }
@@ -386,63 +349,92 @@ namespace TestBenchTarget.WinUI3.ViewModels
             Console.WriteLine("AddCommand notified");
         }
 
+
+        private async void SaveData(bool showNotification = true)
+        {
+            try
+            {
+                bool success = await _dataService.SaveDataAsync();
+                if (success)
+                {
+                    Debug.WriteLine("Data saved successfully.");
+                    if (showNotification)
+                    {
+                        DataSavedSuccessfully?.Invoke(this, EventArgs.Empty);
+                    }
+                }
+                else
+                {
+                    await ShowErrorInfoBar("Error saving data", "Failed to save data.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error saving data: {ex.Message}");
+                await ShowErrorInfoBar("Error while saving data", ex.Message);
+            }
+        }
+
         private async void ClearList()
         {
-            if (_xamlRoot != null)
+            // Získať XamlRoot priamo z MainWindow - najspoľahlivejšie riešenie
+            XamlRoot? xamlRoot = null;
+
+            if (Application.Current is App app && app.m_window is MainWindow mainWindow)
             {
+                xamlRoot = mainWindow.Content?.XamlRoot;
+                System.Diagnostics.Debug.WriteLine($"Getting XamlRoot from MainWindow: {xamlRoot != null}");
+            }
+
+            if (xamlRoot != null)
+            {
+                System.Diagnostics.Debug.WriteLine("Showing confirmation dialog");
+
                 ContentDialog confirmDialog = new ContentDialog
                 {
-                    XamlRoot = _xamlRoot,
-                    Title = "Potvrdenie vymazania",
-                    Content = "Naozaj chcete vyčistiť celý zoznam? Táto akcia sa nedá vrátiť späť, ak dáta nie sú uložené v JSON súbore.",
-                    PrimaryButtonText = "Áno, vyčistiť zoznam",
-                    CloseButtonText = "Zrušiť"
+                    XamlRoot = xamlRoot,
+                    Title = "Confirm deletion",
+                    Content = "Are you sure you want to clear the entire list? This action cannot be undone if the data is not stored in a JSON file.",
+                    PrimaryButtonText = "Yes, clear the list",
+                    CloseButtonText = "Cancel"
                 };
 
                 ContentDialogResult result = await confirmDialog.ShowAsync();
+                System.Diagnostics.Debug.WriteLine($"Dialog result: {result}");
 
                 if (result == ContentDialogResult.Primary)
                 {
-                    DataItems.Clear(); // vyčistiť kolekciu DataItems
-
-                    // Vyčistiť formulár
+                    DataItems.Clear();
                     ClearForm();
-
-                    // Uložiť prázdny zoznam
-                    SaveData();
-
-                    Debug.WriteLine("List cleared");
+                    SaveData(showNotification: false);
+                    Debug.WriteLine("List cleared after confirmation");
                     ListClearedSuccessfully?.Invoke(this, EventArgs.Empty);
+                }
+                else
+                {
+                    Debug.WriteLine("List clearing cancelled by user");
                 }
             }
             else
             {
-                // Ak XamlRoot nie je dostupný, napr. počas testovania, vykonáme akciu bez konfirmácie
-                DataItems.Clear();
-
-                // Vyčistiť formulár
-                ClearForm();
-
-                // Uložiť prázdny zoznam
-                Debug.WriteLine("XamlRoot not available, saving empty list");
-                SaveData();
-
-                Debug.WriteLine("List cleared without confirmation (XamlRoot not available)");
-                ListClearedSuccessfully?.Invoke(this, EventArgs.Empty);
+                // Backup - ak nemôžeme získať XamlRoot, zobrazíme aspoň InfoBar
+                System.Diagnostics.Debug.WriteLine("ERROR: Cannot get XamlRoot for confirmation dialog");
+                ShowInfoBar("Warning", "Cannot show confirmation dialog. Please try again.", InfoBarSeverity.Warning);
             }
         }
 
-        private void ExportData()
+        private async void ExportData()
         {
             try
             {
                 // Vyvolanie udalosti pre export dát
                 ExportDataRequested?.Invoke(this, EventArgs.Empty);
+                Debug.WriteLine("ExportDataRequested event fired");
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error exporting data: {ex.Message}");
-                ShowInfoBar("Chyba", $"Nastala chyba pri exporte dát: {ex.Message}", InfoBarSeverity.Error);
+                await ShowErrorInfoBar("Data export error", $"An error occurred while exporting data: {ex.Message}");
             }
         }
 
@@ -478,6 +470,46 @@ namespace TestBenchTarget.WinUI3.ViewModels
             {
                 Debug.WriteLine($"Error decrementing date: {ex.Message}");
             }
+        }
+
+        // V MainViewModel.cs pridajte túto metódu a upravte DateFormat setter:
+
+        public string DateFormat
+        {
+            get => _dateFormat;
+            set
+            {
+                if (SetProperty(ref _dateFormat, value))
+                {
+                    // Ak sa zmenil formát, preparsujeme existujúci dátum a naformátujeme ho na nový formát
+                    if (DateTime.TryParseExact(_selectedDateString, "dd.MM.yyyy", null, System.Globalization.DateTimeStyles.None, out DateTime date) ||
+                        DateTime.TryParseExact(_selectedDateString, "MM/dd/yyyy", null, System.Globalization.DateTimeStyles.None, out date) ||
+                        DateTime.TryParseExact(_selectedDateString, "yyyy-MM-dd", null, System.Globalization.DateTimeStyles.None, out date))
+                    {
+                        SelectedDateString = date.ToString(value);
+                    }
+
+                    // NOVÉ RIEŠENIE: Vytvoriť nové objekty s aktualizovaným FormattedDate
+                    RefreshDataItemsFormatting();
+
+                    // Debug výpis
+                    System.Diagnostics.Debug.WriteLine($"DateFormat changed to: {value}");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Refresh all items to update their formatted date display
+        /// </summary>
+        private void RefreshDataItemsFormatting()
+        {
+            // Aktualizuje FormattedDate pre všetky existujúce položky
+            foreach (var item in DataItems)
+            {
+                item.UpdateFormattedDate(_dateFormat);
+            }
+
+            System.Diagnostics.Debug.WriteLine($"Refreshed {DataItems.Count} items with new date format: {_dateFormat}");
         }
     }
 }

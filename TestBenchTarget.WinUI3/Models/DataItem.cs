@@ -1,6 +1,5 @@
-﻿using System;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
+using System;
 using System.Text.Json.Serialization;
 
 namespace TestBenchTarget.WinUI3.Models
@@ -8,18 +7,14 @@ namespace TestBenchTarget.WinUI3.Models
     /// <summary>
     /// Reprezentuje dátovú položku v TestBench aplikácii
     /// </summary>
-    public class DataItem : INotifyPropertyChanged, IEquatable<DataItem>
+    public partial class DataItem : ObservableObject, IEquatable<DataItem>
     {
+        private Guid _id = Guid.NewGuid(); // Jedinečný identifikátor položky
         private DateTime _dateColumnValue = DateTime.Now.Date;
         private string _procedureColumnValue = string.Empty;
-        private int _pointsColumnValue;
+        private int _pointsColumnValue = 0;
         private string _delegateColumnValue = string.Empty;
-        private Guid _id = Guid.NewGuid(); // Jedinečný identifikátor položky
-
-        /// <summary>
-        /// Udalosť volaná pri zmene hodnoty vlastnosti
-        /// </summary>
-        public event PropertyChangedEventHandler? PropertyChanged;
+        private string _formattedDate = string.Empty;
 
         /// <summary>
         /// Jedinečný identifikátor položky
@@ -28,18 +23,12 @@ namespace TestBenchTarget.WinUI3.Models
         public Guid Id
         {
             get => _id;
-            set
-            {
-                if (_id != value)
-                {
-                    _id = value;
-                    OnPropertyChanged();
-                }
-            }
+            set => SetProperty(ref _id, value);
         }
 
         /// <summary>
-        /// Dátum vykonania procedúry
+        /// En: Date of the procedure.
+        /// Sk: Dátum vykonania procedúry.
         /// </summary>
         [JsonPropertyName("date")]
         public DateTime DateColumnValue
@@ -47,16 +36,20 @@ namespace TestBenchTarget.WinUI3.Models
             get => _dateColumnValue;
             set
             {
-                if (_dateColumnValue != value.Date)
+                if (SetProperty(ref _dateColumnValue, value.Date))
                 {
-                    _dateColumnValue = value.Date;
-                    OnPropertyChanged();
+                    // Aktualizovať FormattedDate keď sa zmení dátum - ak nie je explicitne nastavený
+                    if (string.IsNullOrEmpty(_formattedDate))
+                    {
+                        FormattedDate = value.ToString("yyyy-MM-dd"); // default format
+                    }
                 }
             }
         }
 
         /// <summary>
-        /// Názov alebo popis procedúry
+        /// En: Name or description of the procedure.
+        /// Sk: Názov alebo popis procedúry.
         /// </summary>
         [JsonPropertyName("procedure")]
         public string ProcedureColumnValue
@@ -64,16 +57,15 @@ namespace TestBenchTarget.WinUI3.Models
             get => _procedureColumnValue;
             set
             {
-                if (_procedureColumnValue != value)
+                if (SetProperty(ref _procedureColumnValue, value))
                 {
-                    _procedureColumnValue = value;
-                    OnPropertyChanged();
                 }
             }
         }
 
         /// <summary>
-        /// Počet bodov priradených k procedúre
+        /// En: Number of points assigned to the procedure.
+        /// Sk: Počet bodov priradených k procedúre.
         /// </summary>
         [JsonPropertyName("points")]
         public int PointsColumnValue
@@ -81,54 +73,44 @@ namespace TestBenchTarget.WinUI3.Models
             get => _pointsColumnValue;
             set
             {
-                if (_pointsColumnValue != value)
+                if (SetProperty(ref _pointsColumnValue, value))
                 {
-                    _pointsColumnValue = value;
-                    OnPropertyChanged();
                 }
             }
         }
 
         /// <summary>
-        /// Meno alebo identifikátor delegovanej osoby
+        /// En: Name or identifier of the delegate.
+        /// Sk: Meno alebo identifikátor delegovanej osoby.
         /// </summary>
         [JsonPropertyName("delegate")]
         public string DelegateColumnValue
         {
             get => _delegateColumnValue;
-            set
-            {
-                if (_delegateColumnValue != value)
-                {
-                    _delegateColumnValue = value;
-                    OnPropertyChanged();
-                }
-            }
+            set => SetProperty(ref _delegateColumnValue, value);
         }
 
         /// <summary>
-        /// Celkový popis položky vo formáte vhodnom na zobrazenie
+        /// Formátovaný dátum pre zobrazenie v UI
         /// </summary>
         [JsonIgnore]
-        public string DisplaySummary => $"{DateColumnValue:dd.MM.yyyy} - {ProcedureColumnValue} ({PointsColumnValue} bodov)";
-
-        /// <summary>
-        /// Dátumy vykonania procedúry vo formáte vhodnom pre zobrazenie
-        /// </summary>
-        [JsonIgnore]
-        public string FormattedDate => DateColumnValue.ToString("dd.MM.yyyy");
-
-        /// <summary>
-        /// Metóda volaná pri zmene hodnoty vlastnosti
-        /// </summary>
-        /// <param name="propertyName">Názov zmenenej vlastnosti</param>
-        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        public string FormattedDate
         {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            get => _formattedDate;
+            set => SetProperty(ref _formattedDate, value);
         }
 
         /// <summary>
-        /// Aktualizuje hodnoty tejto položky z inej položky
+        /// Metóda na aktualizáciu FormattedDate podľa špecifikovaného formátu
+        /// </summary>
+        public void UpdateFormattedDate(string dateFormat)
+        {
+            FormattedDate = DateColumnValue.ToString(dateFormat);
+        }
+
+        /// <summary>
+        /// En: Updates the values of this item from another item.
+        /// Sk: Aktualizuje hodnoty tejto položky z inej položky.
         /// </summary>
         /// <param name="other">Položka, z ktorej sa majú skopírovať hodnoty</param>
         public void UpdateFrom(DataItem other)
@@ -139,10 +121,12 @@ namespace TestBenchTarget.WinUI3.Models
             ProcedureColumnValue = other.ProcedureColumnValue;
             PointsColumnValue = other.PointsColumnValue;
             DelegateColumnValue = other.DelegateColumnValue;
+            FormattedDate = other.FormattedDate;
         }
 
         /// <summary>
-        /// Vytvorí hlbokú kópiu objektu
+        /// En: Creates a deep copy of the DataItem object.
+        /// Sk: Vytvorí hlbokú kópiu objektu.
         /// </summary>
         /// <returns>Nová inštancia DataItem s rovnakými hodnotami</returns>
         public DataItem Clone()
@@ -153,12 +137,14 @@ namespace TestBenchTarget.WinUI3.Models
                 DateColumnValue = this.DateColumnValue,
                 ProcedureColumnValue = this.ProcedureColumnValue,
                 PointsColumnValue = this.PointsColumnValue,
-                DelegateColumnValue = this.DelegateColumnValue
+                DelegateColumnValue = this.DelegateColumnValue,
+                FormattedDate = this.FormattedDate
             };
         }
 
         /// <summary>
-        /// Porovnáva túto položku s inou položkou na základe jej hodnôt
+        /// En: Compares this item with another item based on its values.
+        /// Sk: Porovnáva túto položku s inou položkou na základe jej hodnôt.
         /// </summary>
         /// <param name="other">Položka na porovnanie</param>
         /// <returns>true ak sú položky rovnaké; inak false</returns>
@@ -173,7 +159,8 @@ namespace TestBenchTarget.WinUI3.Models
         }
 
         /// <summary>
-        /// Porovnáva túto položku s ľubovoľným objektom
+        /// En: Compares this item with any object.
+        /// Sk: Porovnáva túto položku s ľubovoľným objektom.
         /// </summary>
         /// <param name="obj">Objekt na porovnanie</param>
         /// <returns>true ak je objekt DataItem a má rovnaké hodnoty; inak false</returns>
@@ -183,21 +170,13 @@ namespace TestBenchTarget.WinUI3.Models
         }
 
         /// <summary>
-        /// Získava hash kód pre túto položku
+        /// En: Gets the hash code for this item.
+        /// Sk: Získava hash kód pre túto položku.
         /// </summary>
         /// <returns>Hash kód</returns>
         public override int GetHashCode()
         {
             return HashCode.Combine(DateColumnValue, ProcedureColumnValue, PointsColumnValue, DelegateColumnValue);
-        }
-
-        /// <summary>
-        /// Vytvára textovú reprezentáciu tejto položky
-        /// </summary>
-        /// <returns>Textová reprezentácia</returns>
-        public override string ToString()
-        {
-            return DisplaySummary;
         }
     }
 }

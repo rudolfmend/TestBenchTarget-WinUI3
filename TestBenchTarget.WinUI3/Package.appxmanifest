@@ -5,18 +5,19 @@
   xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
-  IgnorableNamespaces="uap rescap">
+  xmlns:uap18="http://schemas.microsoft.com/appx/manifest/uap/windows10/18"
+  IgnorableNamespaces="uap rescap uap18">
 
   <Identity
-    Name="d06f3897-8b96-424b-9718-e3c4d5b7232f"
-    Publisher="CN=rudol"
+    Name="RudolfMendzezof.197270BC50CAA"
+    Publisher="CN=A22C22A7-5E85-49D2-8EEF-B99583D1BE25"
     Version="1.0.0.0" />
 
-  <mp:PhoneIdentity PhoneProductId="d06f3897-8b96-424b-9718-e3c4d5b7232f" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
+  <mp:PhoneIdentity PhoneProductId="a3038fe3-4f59-4947-a108-d0af8d08d108" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
   <Properties>
-    <DisplayName>TestBenchTarget.WinUI3</DisplayName>
-    <PublisherDisplayName>rudol</PublisherDisplayName>
+    <DisplayName>TestBench Target</DisplayName>
+    <PublisherDisplayName>Rudolf Mendzezof</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
 
@@ -32,20 +33,27 @@
   <Applications>
     <Application Id="App"
       Executable="$targetnametoken$.exe"
-      EntryPoint="$targetentrypoint$">
+      EntryPoint="$targetentrypoint$" uap18:TrustLevel="mediumIL">
       <uap:VisualElements
-        DisplayName="TestBenchTarget.WinUI3"
-        Description="TestBenchTarget.WinUI3"
-        BackgroundColor="transparent"
+        DisplayName="TestBench Target"
+        Description="A sample application designed to serve as a testing subject for developers creating monitoring, accessibility, or UI automation tools."
+        BackgroundColor="white"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png">
-        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" />
-        <uap:SplashScreen Image="Assets\SplashScreen.png" />
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png"  ShortName="TestBench Target" Square71x71Logo="Assets\SmallTile.png" Square310x310Logo="Assets\LargeTile.png">
+          <uap:ShowNameOnTiles>
+            <uap:ShowOn Tile="square150x150Logo"/>
+          </uap:ShowNameOnTiles>
+        </uap:DefaultTile >
+        <uap:SplashScreen Image="Assets\SplashScreen.png"  BackgroundColor="transparent"/>
+        <uap:InitialRotationPreference>
+          <uap:Rotation Preference="landscape"/></uap:InitialRotationPreference>
       </uap:VisualElements>
     </Application>
   </Applications>
 
   <Capabilities>
     <rescap:Capability Name="runFullTrust" />
+    <uap:Capability Name="picturesLibrary"/>
   </Capabilities>
 </Package>

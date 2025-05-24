@@ -156,7 +156,12 @@ namespace TestBenchTarget.WinUI3.Services
                 }
 
                 // Zabezpečenie existencie priečinka
-                Directory.CreateDirectory(Path.GetDirectoryName(path));
+                //Directory.CreateDirectory(Path.GetDirectoryName(path)); // possible null reference for parameter path 
+                var directoryPath = Path.GetDirectoryName(path);
+                if (!string.IsNullOrEmpty(directoryPath))
+                {
+                    Directory.CreateDirectory(directoryPath);
+                }
 
                 string jsonData = JsonConvert.SerializeObject(_dataList, Formatting.Indented);
                 await File.WriteAllTextAsync(path, jsonData);

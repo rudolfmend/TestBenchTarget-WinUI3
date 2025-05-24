@@ -1,21 +1,9 @@
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Navigation;
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
-using Microsoft.UI.Dispatching;
-
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
+using Windows.System;
 
 namespace TestBenchTarget.WinUI3
 {
@@ -24,7 +12,10 @@ namespace TestBenchTarget.WinUI3
     /// </summary>
     public sealed partial class StartWindow : Window
     {
-        private DispatcherQueueTimer _timer;
+        private Microsoft.UI.Dispatching.DispatcherQueueTimer? _timer;
+        private Windows.Graphics.SizeInt32 _originalSize = new Windows.Graphics.SizeInt32(800, 550);
+        private Windows.Graphics.PointInt32 _originalPosition;
+        private Microsoft.UI.Windowing.AppWindow? _appWindow;
 
         public StartWindow()
         {
@@ -37,7 +28,7 @@ namespace TestBenchTarget.WinUI3
             DateDisplay.Text = DateTime.Now.ToString("dd.MM.yyyy");
 
             // Pouûitie DispatcherQueueTimer namiesto DispatcherTimer vo WinUI 3
-            _timer = DispatcherQueue.GetForCurrentThread().CreateTimer();
+            _timer = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread().CreateTimer();
             _timer.Interval = TimeSpan.FromSeconds(1);
             _timer.Tick += (s, e) =>
             {
@@ -45,33 +36,73 @@ namespace TestBenchTarget.WinUI3
             };
             _timer.Start();
 
-            // Event registration for resource cleanup // Registrovaù udalosù pre vyËistenie zdrojov
+            // Event registration for resource cleanup
             this.Closed += StartWindow_Closed;
 
-            // Add KeyboardAccelerator for Enter // Pridanie KeyboardAccelerator pre Enter
+            // Add KeyboardAccelerator for Enter
             KeyboardAccelerator enterAccelerator = new KeyboardAccelerator
             {
                 Key = Windows.System.VirtualKey.Enter
             };
             enterAccelerator.Invoked += EnterAccelerator_Invoked;
-            //this.KeyboardAccelerators.Add(enterAccelerator);
+
+            // Add the KeyboardAccelerator to the Content's KeyboardAccelerators collection
+            if (this.Content is UIElement contentElement)
+            {
+                contentElement.KeyboardAccelerators.Add(enterAccelerator);
+            }
         }
 
         private void SetWindowSize()
         {
-            // Nastavenie veækosti a n·zvu okna
-            Title = "Test Bench Target";
+            // Nastavenie n·zvu okna
+            Title = "TestBench Target - Start window";
 
             // ZÌskanie handle okna a nastavenie veækosti
             var hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
             var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hWnd);
-            var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
+            _appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
 
-            // Nastavenie veækosti okna
-            appWindow.Resize(new Windows.Graphics.SizeInt32(600, 400));
+            if (_appWindow == null)
+            {
+                throw new InvalidOperationException("Unable to get AppWindow from the current window handle.");
+            }
+
+            // Nastavenie poûadovanej veækosti okna
+            var requestedSize = new Windows.Graphics.SizeInt32(900, 550);
+
+            // ZÌskanie optim·lnej veækosti na z·klade dostupnÈho priestoru
+            var optimalSize = WindowHelper.GetOptimalWindowSize(_appWindow, requestedSize, 0.8);
+
+            // InteligentnÈ umiestnenie okna (centrovanÈ)
+            WindowHelper.EnsureWindowVisibility(_appWindow, optimalSize);
+
+            // Uloûenie aktu·lnej pozÌcie a veækosti
+            _originalSize = _appWindow.Size;
+            _originalPosition = _appWindow.Position;
         }
 
-        private void StartWindow_Closed(object sender, WindowEventArgs e)
+        private void ResizeWindowForDialog(bool forDialog)
+        {
+            if (_appWindow == null) return;
+
+            if (forDialog)
+            {
+                // Zv‰Ëöenie okna pre About dialÛg s inteligentnou kontrolou
+                var requestedDialogSize = new Windows.Graphics.SizeInt32(1000, 700);
+                var optimalDialogSize = WindowHelper.GetOptimalWindowSize(_appWindow, requestedDialogSize, 0.9);
+
+                // ZabezpeËenie viditeænosti aj pri v‰Ëöom okne
+                WindowHelper.EnsureWindowVisibility(_appWindow, optimalDialogSize);
+            }
+            else
+            {
+                // N·vrat na pÙvodn˙ veækosù s kontrolou viditeænosti
+                WindowHelper.EnsureWindowVisibility(_appWindow, _originalSize, _originalPosition);
+            }
+        }
+
+        private void StartWindow_Closed(object? sender, WindowEventArgs e)
         {
             // VyËistenie zdrojov pri zatvorenÌ okna
             if (_timer != null)
@@ -90,23 +121,42 @@ namespace TestBenchTarget.WinUI3
 
         private async void AboutMenuItem_Click(object sender, RoutedEventArgs e)
         {
-            // Show the about dialog // Zobraziù dialÛgovÈ okno O aplik·cii
+            // Zv‰Ëöenie okna pre lepöie zobrazenie About dialÛgu
+            ResizeWindowForDialog(true);
+
+            // Show the about dialog
             ContentDialog aboutDialog = new ContentDialog
             {
-                XamlRoot = this.Content.XamlRoot, // PotrebnÈ pre WinUI 3
+                XamlRoot = this.Content.XamlRoot,
+                Title = "About TestBench Target",
                 CloseButtonText = "Close",
-                PrimaryButtonText = "Close"
+                DefaultButton = ContentDialogButton.Close,
+                MaxWidth = 800
             };
-            StackPanel contentPanel = new StackPanel { Margin = new Thickness(10) };
+
+            StackPanel contentPanel = new StackPanel { Margin = new Thickness(30) };
 
             // ZÌskanie verzie aplik·cie
             var packageVersion = GetAppVersion();
+
+            // Logo/Icon placeholder
+            TextBlock titleBlock = new TextBlock
+            {
+                Text = "TestBench Target",
+                FontSize = 28,
+                FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+                Margin = new Thickness(0, 0, 0, 15),
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
 
             // Verzia
             TextBlock versionBlock = new TextBlock
             {
                 Text = $"Version: {packageVersion}",
-                Margin = new Thickness(0, 10, 0, 20)
+                FontSize = 16,
+                Margin = new Thickness(0, 0, 0, 25),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Opacity = 0.8
             };
 
             // Popis
@@ -114,26 +164,33 @@ namespace TestBenchTarget.WinUI3
             {
                 Text = "A sample application designed to serve as a testing subject for developers creating monitoring, " +
                        "accessibility, or UI automation tools. This app provides predictable user interface elements and " +
-                       "behaviors that developers can use to test their monitoring solutions. For Windows 10 and newer.\n\n" +
+                       "behaviors that developers can use to test their monitoring solutions.\n\n" +
                        "Main features:\n" +
-                       "  - Small and fast application\n" +
-                       "  - Tests opening a Windows directory\n" +
-                       "  - Simulates adding defined items to a table\n" +
-                       "  - Simple chronological display of data in a table format\n" +
-                       "  - Provides a target app for trying out monitoring and testing tools\n\n" +
+                       "  ï Small and fast application\n" +
+                       "  ï Tests opening a Windows directory\n" +
+                       "  ï Simulates adding defined items to a table\n" +
+                       "  ï Simple chronological display of data in a table format\n" +
+                       "  ï Provides a target app for trying out monitoring and testing tools\n\n" +
                        "Ideal for developers and testers who need a reliable target application when developing tools " +
                        "to monitor and test UI interactions.",
-                TextWrapping = TextWrapping.Wrap
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 25),
+                LineHeight = 22,
+                FontSize = 14
             };
 
             // Copyright
             TextBlock copyrightBlock = new TextBlock
             {
                 Text = "Copyright © 2025 Rudolf Mendzezof",
-                Margin = new Thickness(0, 20, 0, 0)
+                FontSize = 12,
+                Margin = new Thickness(0, 20, 0, 0),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Opacity = 0.6
             };
 
             // Pridanie vöetk˝ch prvkov do panelu
+            contentPanel.Children.Add(titleBlock);
             contentPanel.Children.Add(versionBlock);
             contentPanel.Children.Add(descriptionBlock);
             contentPanel.Children.Add(copyrightBlock);
@@ -143,6 +200,102 @@ namespace TestBenchTarget.WinUI3
 
             // Zobrazenie dialÛgu
             await aboutDialog.ShowAsync();
+
+            // N·vrat na pÙvodn˙ veækosù okna po zatvorenÌ dialÛgu
+            ResizeWindowForDialog(false);
+        }
+
+        private async void PersonalDataProtectionMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            // Zv‰Ëöenie okna pre lepöie zobrazenie dialÛgu
+            ResizeWindowForDialog(true);
+
+            // Show the personal data protection dialog
+            ContentDialog personalDataDialog = new ContentDialog
+            {
+                XamlRoot = this.Content.XamlRoot,
+                Title = "Personal Data Protection",
+                PrimaryButtonText = "Learn More",
+                CloseButtonText = "Close",
+                MaxWidth = 800
+            };
+
+            StackPanel contentPanel = new StackPanel { Margin = new Thickness(30) };
+
+            // Hlavn˝ text
+            TextBlock mainTextBlock = new TextBlock
+            {
+                Text = "Privacy and Data Protection",
+                FontSize = 20,
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                Margin = new Thickness(0, 0, 0, 20),
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+
+            // Obsah
+            TextBlock contentTextBlock = new TextBlock
+            {
+                Text = "This application is designed with privacy in mind:\n\n" +
+                       "ï No personal data collection: This application does not collect, store, or transmit any personal information.\n\n" +
+                       "ï Local data storage: All application data is stored locally on your device and never shared with third parties.\n\n" +
+                       "ï No network communication: The application operates entirely offline and does not connect to external servers.\n\n" +
+                       "ï Transparent operation: As a testing tool, all operations are visible and predictable.\n\n" +
+                       "For detailed information about data protection practices and your rights, please visit our privacy policy page.",
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 25),
+                FontSize = 14,
+                LineHeight = 22
+            };
+
+            // Link info
+            TextBlock linkInfoBlock = new TextBlock
+            {
+                Text = "Click 'Learn More' to visit our detailed privacy policy and data protection information.",
+                FontSize = 12,
+                Opacity = 0.7,
+                TextWrapping = TextWrapping.Wrap,
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+
+            contentPanel.Children.Add(mainTextBlock);
+            contentPanel.Children.Add(contentTextBlock);
+            contentPanel.Children.Add(linkInfoBlock);
+
+            personalDataDialog.Content = contentPanel;
+
+            // Handle button clicks
+            personalDataDialog.PrimaryButtonClick += PersonalDataDialog_PrimaryButtonClick;
+
+            await personalDataDialog.ShowAsync();
+
+            // N·vrat na pÙvodn˙ veækosù okna po zatvorenÌ dialÛgu
+            ResizeWindowForDialog(false);
+        }
+
+        private async void PersonalDataDialog_PrimaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
+        {
+            // Navigate to GitHub Pages privacy policy
+            string privacyPolicyUrl = "https://rudolfmendzezof.github.io/testbench-target/privacy-policy";
+
+            try
+            {
+                await Launcher.LaunchUriAsync(new Uri(privacyPolicyUrl));
+            }
+            catch (Exception ex)
+            {
+                // Fallback ak sa nepodarÌ otvoriù link
+                System.Diagnostics.Debug.WriteLine($"Error opening privacy policy URL: {ex.Message}");
+
+                // Zobraziù fallback dialÛg s URL
+                ContentDialog fallbackDialog = new ContentDialog
+                {
+                    XamlRoot = this.Content.XamlRoot,
+                    Title = "Privacy Policy",
+                    Content = $"Please visit the following URL for our privacy policy:\n\n{privacyPolicyUrl}",
+                    CloseButtonText = "Close"
+                };
+                await fallbackDialog.ShowAsync();
+            }
         }
 
         private string GetAppVersion()
@@ -161,15 +314,14 @@ namespace TestBenchTarget.WinUI3
 
         private void EnterAccelerator_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
         {
-            // Handle the Enter key press // Spracovaù stlaËenie kl·vesu Enter
-            // Navigate to StartWindow when Enter is pressed
+            // Handle the Enter key press
             NavigateToMainWindow();
             args.Handled = true;
         }
 
         private void NavigateToMainWindow()
         {
-            // Open the application // Otvoriù aplik·ciu
+            // Open the application
             MainWindow mainWindow = new MainWindow();
             mainWindow.Activate();
             this.Close();

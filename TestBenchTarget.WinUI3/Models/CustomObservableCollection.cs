@@ -13,7 +13,7 @@ namespace TestBenchTarget.WinUI3.Models
     /// pre efektívnejšiu prácu s kolekciami.
     /// </summary>
     /// <typeparam name="T">Typ položiek v kolekcii.</typeparam>
-    public class CustomObservableCollection<T> : ObservableCollection<T>
+    public partial class CustomObservableCollection<T> : ObservableCollection<T>
     {
         private bool _suppressNotification = false;
 
@@ -260,7 +260,7 @@ namespace TestBenchTarget.WinUI3.Models
         /// <summary>
         /// Trieda pre dočasné potlačenie notifikácií.
         /// </summary>
-        private class NotificationSuppressor : IDisposable
+        private partial class NotificationSuppressor : IDisposable
         {
             private readonly CustomObservableCollection<T> _collection;
             private readonly bool _oldValue;

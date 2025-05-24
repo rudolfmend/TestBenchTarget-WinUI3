@@ -7,7 +7,8 @@
    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"  
    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"  
    mc:Ignorable="d"  
-   Title="StartWindow">
+   Title="Start window">
+
     <Grid>
         <Grid Padding="20">
             <Grid.RowDefinitions>
@@ -15,38 +16,76 @@
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
-            <!-- Top panel  -  Horný panel -->
+
+            <!-- Top panel -->
             <StackPanel Grid.Row="0" Orientation="Horizontal">
-                <TextBlock Text="Start Window - TestBench Target" FontSize="16" VerticalAlignment="Center"
-                       Padding="20, 5"/>
             </StackPanel>
-            <!-- Middle part  -  Stredná časť -->
-            <StackPanel Grid.Row="1" VerticalAlignment="Top" HorizontalAlignment="Left">
+
+            <!-- Middle part -->
+            <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center">
                 <TextBlock x:Name="TimeDisplay" 
-                    FontSize="32" VerticalAlignment="Top" Text="00:00:00"
-                    AutomationProperties.Name="Current Time Display"
-                    AutomationProperties.LiveSetting="Assertive"
-                    Padding="20, 5" HorizontalAlignment="Left" />
-                <TextBlock x:Name="DateDisplay" Text="00.00.0000" 
-                       FontSize="32" HorizontalAlignment="Left" Margin="0,0,0,20"/>
+                          FontSize="32" 
+                          Text="00:00:00"
+                          AutomationProperties.Name="Current Time Display"
+                          AutomationProperties.LiveSetting="Assertive"
+                          HorizontalAlignment="Center"
+                          Margin="0,0,0,10" />
+
+                <TextBlock x:Name="DateDisplay" 
+                          Text="00.00.0000" 
+                          FontSize="24" 
+                          HorizontalAlignment="Center" 
+                          Margin="0,0,0,40"
+                          Opacity="0.8"/>
             </StackPanel>
-            <!-- OpenAppButton for Open a application -->
-            <Button Grid.Row="2" x:Name="OpenAppButton" 
-                Content="Open Application" 
-                Click="OpenApplicationButton_Click"
-                AutomationProperties.Name="Open Application Button"
-                AutomationProperties.HelpText="Opens the main application window"
-                HorizontalAlignment="Stretch"
-                Height="100" 
-                FontSize="20"/>
-            <!-- Menu -->
-            <CommandBar Grid.Row="0" HorizontalAlignment="Right" 
-                    Background="Transparent" IsOpen="False" 
-                    DefaultLabelPosition="Right">
-                <AppBarButton Icon="Help" Label="Help">
+
+            <!-- Open Application Button -->
+            <Button Grid.Row="2" 
+                   x:Name="OpenAppButton" 
+                   Content="Open Application" 
+                   Click="OpenApplicationButton_Click"
+                   AutomationProperties.Name="Open Application Button"
+                   AutomationProperties.HelpText="Opens the main application window"
+                   HorizontalAlignment="Stretch"
+                   Height="60" 
+                   FontSize="18"
+                   Style="{StaticResource AccentButtonStyle}"/>
+
+            <!-- Help Menu -->
+            <CommandBar Grid.Row="0" 
+                       HorizontalAlignment="Right" 
+                       Background="Transparent" 
+                       IsOpen="False" 
+                       DefaultLabelPosition="Right">
+                <AppBarButton
+                    Icon="AlignRight"
+                    Label="Help"
+                    x:Name="NavigationHelpButton"
+                    AutomationProperties.Name="Help Menu"
+                    AutomationProperties.HelpText="Access help and information">
                     <AppBarButton.Flyout>
                         <MenuFlyout>
-                            <MenuFlyoutItem Text="About" Click="AboutMenuItem_Click"/>
+                            <MenuFlyoutItem Text="About" 
+                                            Click="AboutMenuItem_Click"
+                                            x:Name="MenuFlyoutAboutItem"
+                                            AutomationProperties.Name="About TestBench Target"
+                                            AutomationProperties.HelpText="View application information and version">
+                                <MenuFlyoutItem.Icon>
+                                    <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xE946;"/>
+                                </MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
+
+                            <MenuFlyoutSeparator/>
+
+                            <MenuFlyoutItem Text="Personal Data Protection" 
+                                            x:Name="PersonalDataProtectionMenuItem"
+                                            Click="PersonalDataProtectionMenuItem_Click"
+                                            AutomationProperties.Name="Personal Data Protection Information"
+                                            AutomationProperties.HelpText="View privacy policy and data protection information">
+                                <MenuFlyoutItem.Icon>
+                                    <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xE72E;"/>
+                                </MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
                         </MenuFlyout>
                     </AppBarButton.Flyout>
                 </AppBarButton>

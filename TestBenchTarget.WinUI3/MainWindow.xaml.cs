@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Input;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
@@ -20,10 +21,8 @@ namespace TestBenchTarget.WinUI3
     {
         private DateTime _currentDate = DateTime.Now.Date;
         private DispatcherQueueTimer? _timer;
-        private MainViewModel _viewModel;
+        private readonly MainViewModel _viewModel;
         public MainViewModel ViewModel => _viewModel;
-        private CustomObservableCollection<DataItem> _dataItems = new CustomObservableCollection<DataItem>();
-        private int _dateOffset = 0; // Offset from today's date for the DateNumberBox selection
 
         // Potrebné pre FilePicker vo WinUI 3
         [DllImport("user32.dll", ExactSpelling = true, CharSet = CharSet.Auto, PreserveSig = true, SetLastError = false)]
@@ -37,7 +36,10 @@ namespace TestBenchTarget.WinUI3
             SetWindowProperties();
 
             _viewModel = new MainViewModel(new DataService());
-            _viewModel.SetXamlRoot(this.Content.XamlRoot);
+
+            // JEDNODUCHÉ RIEŠENIE: Nastavenie XamlRoot vždy cez delay
+            // Táto metóda zabezpeèí, že sa XamlRoot nastaví po úplnom naèítaní okna
+            _ = SetXamlRootDelayed();
 
             // Nastavenie DataContext pre koreòový Grid
             if (this.Content is FrameworkElement rootContent)
@@ -59,24 +61,9 @@ namespace TestBenchTarget.WinUI3
                 await ExportDataAsync();
             };
             _viewModel.DataSavedSuccessfully += (sender, args) => {
-                ShowInfoBar("Success", "Data saved successfully", InfoBarSeverity.Success);
-            };
-            _viewModel.ListClearedSuccessfully += (sender, args) => {
-                ShowInfoBar("Success", "List cleared successfully", InfoBarSeverity.Success);
+                ShowInfoBar(" ", "Data saved successfully", InfoBarSeverity.Success);
             };
 
-            System.Diagnostics.Debug.WriteLine("ViewModel initialized");
-            //System.Diagnostics.Debug.WriteLine($"DataContext set: {this.DataContext != null}");
-
-
-
-            // Pridanie KeyDown na root element
-            if (this.Content is UIElement rootElement)
-            {
-                rootElement.KeyDown += MainWindow_KeyDown;
-            }
-
-            // Zvyšok konštruktora bez KeyboardAccelerators
             DateFormatSelector.SelectionChanged += DateFormatSelector_SelectionChanged;
 
             // Inicializácia _currentDate aktuálnym dátumom
@@ -85,7 +72,7 @@ namespace TestBenchTarget.WinUI3
             // Ak je SelectedDateString nastavený, skúste ho parsova
             if (!string.IsNullOrEmpty(_viewModel.SelectedDateString))
             {
-                var converter = new DateFormatConverter();
+                var converter = new DynamicDateFormatConverter();
                 var result = converter.ConvertBack(_viewModel.SelectedDateString, typeof(DateTime), null, null);
 
                 if (result is DateTime dateTime)
@@ -96,11 +83,45 @@ namespace TestBenchTarget.WinUI3
 
             this.Closed += MainWindow_Closed;
 
-            _viewModel.DataSavedSuccessfully += ViewModel_DataSavedSuccessfully!;
-            _viewModel.ListClearedSuccessfully += ViewModel_ListClearedSuccessfully!;
+            _viewModel.DataSavedSuccessfully += ViewModel_DataSavedSuccessfully;
+            _viewModel.ListClearedSuccessfully += ViewModel_ListClearedSuccessfully;
 
             InitializeDateFormatSelector();
         }
+
+        private async Task SetXamlRootDelayed()
+        {
+            // Poèkaj krátko, aby sa okno úplne naèítalo
+            await Task.Delay(100);
+
+            try
+            {
+                if (this.Content?.XamlRoot != null)
+                {
+                    _viewModel.SetXamlRoot(this.Content.XamlRoot);
+                    System.Diagnostics.Debug.WriteLine("XamlRoot set successfully via delayed method");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine("XamlRoot still null after delay");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error setting XamlRoot: {ex.Message}");
+            }
+        }
+
+        private void BackToStartWindow_Click(object sender, RoutedEventArgs e)
+        {
+            // Vytvorenie a zobrazenie poèiatoèného okna
+            StartWindow startWindow = new StartWindow();
+            startWindow.Activate();
+            // Zatvorenie aktuálneho okna
+            this.Close();
+        }
+
+
 
         private void InitializeDateFormatSelector()
         {
@@ -115,7 +136,6 @@ namespace TestBenchTarget.WinUI3
                 }
             }
         }
-
 
         // Handler pre KeyDown event
         private void MainWindow_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
@@ -163,11 +183,9 @@ namespace TestBenchTarget.WinUI3
             }
         }
 
-
         public void ShowInfoBar(string title, string message, InfoBarSeverity severity = InfoBarSeverity.Informational)
         {
             // Implementácia zobrazenia InfoBar
-
             InfoBar infoBar = new InfoBar
             {
                 Title = title,
@@ -177,6 +195,7 @@ namespace TestBenchTarget.WinUI3
                 XamlRoot = this.Content.XamlRoot
             };
             NotificationContainer.Children.Add(infoBar);
+
             // Nastavenie èasovaèa pre automatické zatvorenie po 5 sekundách
             var timer = DispatcherQueue.GetForCurrentThread().CreateTimer();
             timer.Interval = TimeSpan.FromSeconds(5);
@@ -196,17 +215,27 @@ namespace TestBenchTarget.WinUI3
             timer.Start();
         }
 
-
         private void SetWindowProperties()
         {
             // Nastavenie titulku okna
-            Title = "TestBench Target";
+            Title = "TestBench Target - Main window";
 
             // Nastavenie ve¾kosti okna pre WinUI 3
             var hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
             var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hWnd);
             var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
-            appWindow.Resize(new Windows.Graphics.SizeInt32(1024, 768));
+
+            if (appWindow != null)
+            {
+                // Požadovaná ve¾kos pre MainWindow
+                var requestedSize = new Windows.Graphics.SizeInt32 { Width = 1024, Height = 868 };
+
+                // Získanie optimálnej ve¾kosti (maximálne 85% obrazovky)
+                var optimalSize = WindowHelper.GetOptimalWindowSize(appWindow, requestedSize, 0.85);
+
+                // Inteligentné umiestnenie okna
+                WindowHelper.EnsureWindowVisibility(appWindow, optimalSize);
+            }
         }
 
         // Handler pre zmenu formátu dátumu
@@ -236,7 +265,7 @@ namespace TestBenchTarget.WinUI3
             ChangeDateByDays(-1);
         }
 
-        private void DateDisplay_PointerWheelChanged(object sender, PointerRoutedEventArgs e)        // handler for PointerWheelChanged in the TextBlock
+        private void DateDisplay_PointerWheelChanged(object sender, PointerRoutedEventArgs e)
         {
             int delta = e.GetCurrentPoint(null).Properties.MouseWheelDelta;
             ChangeDateByDays(delta > 0 ? 1 : -1);
@@ -249,64 +278,20 @@ namespace TestBenchTarget.WinUI3
             _viewModel.SelectedDateString = _currentDate.ToString(_viewModel.DateFormat);
         }
 
-        // When the user presses Enter to add an item to the table, the focus is set to the first field of the form.
-        private void EnterAccelerator_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
-        {
-            // Ensure _viewModel is of the correct type  
-            if (_viewModel is MainViewModel mainViewModel)
-            {
-                // Execute the command when Enter is pressed  
-                if (mainViewModel.AddCommand.CanExecute(null))
-                {
-                    mainViewModel.AddCommand.Execute(null);
-                    ProcedureInput.Focus(FocusState.Programmatic); // Set focus to the first field of the form ("ProcedureInput" TextBox)
-                }
-            }
-            args.Handled = true; // Prevent further processing of the Enter key  
-        }
-
         private void ShowNotification(string title, string content, InfoBarSeverity severity = InfoBarSeverity.Informational)
         {
-            // Vytvorenie InfoBar s automatickým zmiznutím po 5 sekundách
-            InfoBar infoBar = new InfoBar
-            {
-                Title = title,
-                Message = content,
-                IsOpen = true,
-                Severity = severity,
-                XamlRoot = this.Content.XamlRoot
-            };
-
-            // Pridanie InfoBar do XAML rozloženia
-            NotificationContainer.Children.Add(infoBar);
-
-            // Nastavenie èasovaèa pre automatické zatvorenie po 5 sekundách
-            var timer = DispatcherQueue.GetForCurrentThread().CreateTimer();
-            timer.Interval = TimeSpan.FromSeconds(5);
-            timer.Tick += (s, e) =>
-            {
-                infoBar.IsOpen = false;
-                timer.Stop();
-                // Odstránenie z XAML po zatvorení animácie
-                DispatcherQueue.GetForCurrentThread().TryEnqueue(DispatcherQueuePriority.Normal, () =>
-                {
-                    if (NotificationContainer.Children.Contains(infoBar))
-                    {
-                        NotificationContainer.Children.Remove(infoBar);
-                    }
-                });
-            };
-            timer.Start();
+            ShowInfoBar(title, content, severity);
         }
 
-        private void ViewModel_ListClearedSuccessfully(object sender, EventArgs e)
+        private void ViewModel_ListClearedSuccessfully(object? sender, EventArgs e)
         {
-            ShowNotification("Úspech", "Zoznam bol úspešne vyèistený");
+            //ShowNotification("Úspech", "Zoznam bol úspešne vyèistený");
+            ShowNotification(" ", "List cleared successfully", InfoBarSeverity.Success);
         }
 
         private void MainWindow_Closed(object sender, WindowEventArgs e)
         {
-            // Zastavenie a vyèistenie èasovaèa // Stop and clean the timer
+            // Zastavenie a vyèistenie èasovaèa
             if (_timer != null)
             {
                 _timer.Stop();
@@ -315,10 +300,8 @@ namespace TestBenchTarget.WinUI3
         }
 
         /// <summary>
-        /// EN - Get the default path to the JSON file
-        /// SK - Získanie predvolenej cesty k JSON súboru 
+        /// Získanie predvolenej cesty k JSON súboru 
         /// </summary>
-        /// <returns></returns>
         private async Task<string> GetDefaultJsonFilePath()
         {
             StorageFolder localFolder = ApplicationData.Current.LocalFolder;
@@ -344,9 +327,47 @@ namespace TestBenchTarget.WinUI3
             }
         }
 
-        private void ViewModel_DataSavedSuccessfully(object sender, EventArgs e)
+        private void ViewModel_DataSavedSuccessfully(object? sender, EventArgs e)
         {
-            ShowNotification("Úspech", "Dáta boli úspešne uložené");
+            Debug.WriteLine("Data saved successfully - private void ViewModel_DataSavedSuccessfully");
+        }
+
+        private void PointsInput_GotFocus(object sender, RoutedEventArgs e)
+        {
+            TextBox? textBox = sender as TextBox;
+            if (textBox == null) return;
+
+            // Ak je hodnota "0", vymaž ju a nastav kurzor na zaèiatok
+            if (textBox.Text == "0")
+            {
+                textBox.Text = string.Empty;
+                textBox.SelectionStart = 0;
+                textBox.SelectionLength = 0;
+            }
+            else
+            {
+                // Inak vyber celý text pre jednoduché prepísanie
+                textBox.SelectAll();
+            }
+
+            System.Diagnostics.Debug.WriteLine($"PointsInput got focus, text: '{textBox.Text}'");
+        }
+
+        private void PointsInput_LostFocus(object sender, RoutedEventArgs e)
+        {
+            TextBox? textBox = sender as TextBox;
+            if (textBox == null) return;
+
+            // Ak je pole prázdne alebo obsahuje len whitespace, nastav na "0"
+            if (string.IsNullOrWhiteSpace(textBox.Text))
+            {
+                textBox.Text = "0";
+                System.Diagnostics.Debug.WriteLine("PointsInput lost focus - set to '0' (was empty)");
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine($"PointsInput lost focus, text: '{textBox.Text}'");
+            }
         }
 
         private void PointsInput_TextChanged(object sender, TextChangedEventArgs e)
@@ -354,10 +375,10 @@ namespace TestBenchTarget.WinUI3
             TextBox? textBox = sender as TextBox;
             if (textBox == null) return;
 
-            // Cursor position preservation // Zachovanie pozície kurzora
+            // Zachovanie pozície kurzora
             int cursorPosition = textBox.SelectionStart;
 
-            // Remove all characters except digits  // Odstránenie všetkých znakov okrem èísel
+            // Odstránenie všetkých znakov okrem èísel
             StringBuilder cleanedText = new StringBuilder();
             foreach (char c in textBox.Text)
             {
@@ -367,18 +388,23 @@ namespace TestBenchTarget.WinUI3
                 }
             }
 
-            // If is text empty, set 0 // Ak je text prázdny, nastavíme 0
-            if (string.IsNullOrEmpty(cleanedText.ToString()))
-            {
-                textBox.Text = "0";
-                cursorPosition = 1; // cursor after the number
-            }
-            // If text has changed, update it // Ak sa text zmenil, aktualizujeme ho
-            else if (cleanedText.ToString() != textBox.Text)
-            {
-                textBox.Text = cleanedText.ToString();
+            string cleanedString = cleanedText.ToString();
 
-                // Preserve cursor position // Obnovenie - Zachovanie pozície kurzora
+            // ZMENA: Ak je text prázdny, nenastav "0" automaticky (to sa stane pri LostFocus)
+            if (string.IsNullOrEmpty(cleanedString))
+            {
+                if (textBox.Text != string.Empty)
+                {
+                    textBox.Text = string.Empty;
+                    textBox.SelectionStart = 0;
+                }
+            }
+            // Ak sa text zmenil, aktualizuj ho
+            else if (cleanedString != textBox.Text)
+            {
+                textBox.Text = cleanedString;
+
+                // Zachovanie pozície kurzora
                 if (cursorPosition <= textBox.Text.Length)
                 {
                     textBox.SelectionStart = cursorPosition;
@@ -388,17 +414,8 @@ namespace TestBenchTarget.WinUI3
                     textBox.SelectionStart = textBox.Text.Length;
                 }
             }
-        }
 
-        private void PointsInput_LostFocus(object sender, RoutedEventArgs e)
-        {
-            TextBox? textBox = sender as TextBox;
-            if (textBox == null) return;
-
-            if (string.IsNullOrEmpty(textBox.Text))
-            {
-                textBox.Text = "0";
-            }
+            System.Diagnostics.Debug.WriteLine($"PointsInput text changed to: '{textBox.Text}'");
         }
 
         private void MainListView_KeyDown(object sender, KeyRoutedEventArgs e)
@@ -418,7 +435,7 @@ namespace TestBenchTarget.WinUI3
             var item = MainListView.SelectedItem as DataItem;
             System.Diagnostics.Debug.WriteLine($"XAML Selection changed: {item != null}");
 
-            // Manual synchronization if binding does not work // Manuálna synchronizácia, ak by binding nefungoval
+            // Manuálna synchronizácia, ak by binding nefungoval
             if (item != null && _viewModel.SelectedItem != item)
             {
                 _viewModel.SelectedItem = item;
@@ -437,73 +454,6 @@ namespace TestBenchTarget.WinUI3
                 {
                     _viewModel.AddCommand.Execute(null);
                 }
-            }
-        }
-    }
-
-    // Converter for date formatting // Konverter pre formátovanie dátumu
-    public sealed class DateFormatConverter : IValueConverter
-    {
-        public object? Convert(object value, Type targetType, object parameter, string language)
-        {
-            try
-            {
-                if (value is DateTime dateTime)
-                {
-                    // WinUI 3 nemá Window.Current, musíme použi iný prístup
-                    var app = Application.Current;
-                    if (app is App currentApp && currentApp.m_window is MainWindow mainWindow)
-                    {
-                        if (mainWindow.ViewModel != null)
-                        {
-                            return dateTime.ToString(mainWindow.ViewModel.DateFormat);
-                        }
-                    }
-
-                    // Alternatívne použi parameter, ak bol poskytnutý
-                    if (parameter is string format)
-                    {
-                        return dateTime.ToString(format);
-                    }
-
-                    // Záložný formát
-                    return dateTime.ToString("dd.MM.yyyy");
-                }
-                return value != null ? value.ToString() : string.Empty;
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error in date conversion: {ex.Message}");
-                return string.Empty;
-            }
-        }
-
-        public object ConvertBack(object value, Type targetType, object? parameter, string? language)
-        {
-            try
-            {
-                if (value is string dateString)
-                {
-                    // Skúsi parseova pod¾a rôznych formátov
-                    foreach (var format in new[] { "dd.MM.yyyy", "MM/dd/yyyy", "yyyy-MM-dd" })
-                    {
-                        if (DateTime.TryParseExact(dateString, format, null, System.Globalization.DateTimeStyles.None, out DateTime parsedDate))
-                        {
-                            return parsedDate;
-                        }
-                    }
-
-                    // Skúsi obyèajný parsing ako poslednú možnos
-                    if (DateTime.TryParse(dateString, out DateTime result))
-                    {
-                        return result;
-                    }
-                }
-                return DateTime.Now;
-            }
-            catch
-            {
-                return DateTime.Now;
             }
         }
     }
