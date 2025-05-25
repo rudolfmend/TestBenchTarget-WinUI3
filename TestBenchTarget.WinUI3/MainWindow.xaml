@@ -291,14 +291,14 @@
                         MinHeight="38" FontSize="14" Margin="0,4,4,8" />
                     
                     <Button Content="Clear form" Grid.Row="2" Grid.Column="1"
-                        Command="{x:Bind ViewModel.ClearFormCommand, Mode=OneWay }"
+                        Command="{x:Bind ViewModel.ClearFormCommand }"
                         x:Name="ClearFormButton"
                         HorizontalAlignment="Stretch"
                         MinHeight="38" FontSize="14" Margin="4,4,0,8" />
 
                     <!-- Row 4 -->
                     <Button Content="Clear list" Grid.Row="3" Grid.Column="0"
-                        Command="{x:Bind ViewModel.ClearListCommand, Mode=OneWay }"
+                        Command="{x:Bind ViewModel.ClearListCommand }"
                         x:Name="ClearListButton"
                         HorizontalAlignment="Stretch" TabIndex="12"
                         MinHeight="38" FontSize="14" Margin="0,4,4,8" />

@@ -92,10 +92,12 @@ namespace TestBenchTarget.WinUI3
         private async Task SetXamlRootDelayed()
         {
             // Poèkaj krátko, aby sa okno úplne naèítalo
-            await Task.Delay(100);
+            await Task.Delay(200); // Zvýšili sme delay
 
             try
             {
+                System.Diagnostics.Debug.WriteLine("Attempting to set XamlRoot...");
+
                 if (this.Content?.XamlRoot != null)
                 {
                     _viewModel.SetXamlRoot(this.Content.XamlRoot);
@@ -103,7 +105,19 @@ namespace TestBenchTarget.WinUI3
                 }
                 else
                 {
-                    System.Diagnostics.Debug.WriteLine("XamlRoot still null after delay");
+                    System.Diagnostics.Debug.WriteLine("XamlRoot still null after delay - trying alternative");
+
+                    // Alternatívny pokus po ïalšom èakaní
+                    await Task.Delay(300);
+                    if (this.Content?.XamlRoot != null)
+                    {
+                        _viewModel.SetXamlRoot(this.Content.XamlRoot);
+                        System.Diagnostics.Debug.WriteLine("XamlRoot set successfully via alternative method");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine("XamlRoot definitively unavailable");
+                    }
                 }
             }
             catch (Exception ex)

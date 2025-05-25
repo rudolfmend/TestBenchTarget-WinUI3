@@ -295,11 +295,13 @@ namespace TestBenchTarget.WinUI3.Services
         }
 
         /// <summary>
-        /// Vymazanie všetkých dát
+        /// Vymazanie všetkých dát - už existuje v DataService.cs
         /// </summary>
         public void ClearAllData()
         {
+            System.Diagnostics.Debug.WriteLine($"DataService.ClearAllData called, clearing {_dataList.Count} items");
             _dataList.Clear();
+            System.Diagnostics.Debug.WriteLine("DataService.ClearAllData completed");
         }
 
         /// <summary>
