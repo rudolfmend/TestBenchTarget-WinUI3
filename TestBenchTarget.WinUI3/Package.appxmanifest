@@ -11,7 +11,7 @@
   <Identity
     Name="RudolfMendzezof.197270BC50CAA"
     Publisher="CN=A22C22A7-5E85-49D2-8EEF-B99583D1BE25"
-    Version="1.0.0.0" />
+    Version="1.0.1.0" />
 
   <mp:PhoneIdentity PhoneProductId="a3038fe3-4f59-4947-a108-d0af8d08d108" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
@@ -46,14 +46,11 @@
           </uap:ShowNameOnTiles>
         </uap:DefaultTile >
         <uap:SplashScreen Image="Assets\SplashScreen.png"  BackgroundColor="transparent"/>
-        <uap:InitialRotationPreference>
-          <uap:Rotation Preference="landscape"/></uap:InitialRotationPreference>
       </uap:VisualElements>
     </Application>
   </Applications>
 
   <Capabilities>
     <rescap:Capability Name="runFullTrust" />
-    <uap:Capability Name="picturesLibrary"/>
   </Capabilities>
 </Package>

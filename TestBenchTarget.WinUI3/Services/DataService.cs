@@ -11,7 +11,7 @@ namespace TestBenchTarget.WinUI3.Services
 {
     public class DataService
     {
-        private readonly CustomObservableCollection<DataItem> _dataList = new CustomObservableCollection<DataItem>();
+        private readonly CustomObservableCollection<DataItem> _dataList = [];
         private const string _fileName = "TestBenchTarget.json";
         private const string _appFolderName = "TestBenchTarget";
 
@@ -107,7 +107,7 @@ namespace TestBenchTarget.WinUI3.Services
         /// <summary>
         /// Získanie lokálneho priečinka aplikácie
         /// </summary>
-        public Task<StorageFolder> GetLocalFolderAsync()
+        public static Task<StorageFolder> GetLocalFolderAsync()
         {
             return Task.FromResult(ApplicationData.Current.LocalFolder);
         }
@@ -237,7 +237,7 @@ namespace TestBenchTarget.WinUI3.Services
         /// <summary>
         /// Alternatívna implementácia GetLocalFolderAsync - vracia cestu k priečinku
         /// </summary>
-        public string GetLocalFolderPath()
+        public static string GetLocalFolderPath()
         {
             return ApplicationData.Current.LocalFolder.Path;
         }
@@ -245,7 +245,7 @@ namespace TestBenchTarget.WinUI3.Services
         /// <summary>
         /// Získanie priečinka v Documents
         /// </summary>
-        public async Task<string> GetDocumentsFolderPathAsync()
+        public static async Task<string> GetDocumentsFolderPathAsync()
         {
             try
             {
@@ -311,18 +311,17 @@ namespace TestBenchTarget.WinUI3.Services
         {
             try
             {
-                using (var writer = new StreamWriter(filePath))
-                {
-                    // Hlavička CSV
-                    await writer.WriteLineAsync("Date,Procedure,Points,Delegate");
+                using var writer = new StreamWriter(filePath);  // Zjednodušené using
 
-                    // Dáta
-                    foreach (var item in _dataList)
-                    {
-                        await writer.WriteLineAsync(
-                            $"{item.DateColumnValue:yyyy-MM-dd},{EscapeCsvField(item.ProcedureColumnValue)}," +
-                            $"{item.PointsColumnValue},{EscapeCsvField(item.DelegateColumnValue)}");
-                    }
+                // Hlavička CSV
+                await writer.WriteLineAsync("Date,Procedure,Points,Delegate");
+
+                // Dáta
+                foreach (var item in _dataList)
+                {
+                    await writer.WriteLineAsync(
+                        $"{item.DateColumnValue:yyyy-MM-dd},{EscapeCsvField(item.ProcedureColumnValue)}," +
+                        $"{item.PointsColumnValue},{EscapeCsvField(item.DelegateColumnValue)}");
                 }
 
                 return true;
@@ -335,16 +334,18 @@ namespace TestBenchTarget.WinUI3.Services
             }
         }
 
+
         /// <summary>
         /// Escapovanie poľa pre CSV formát
         /// </summary>
-        private string EscapeCsvField(string field)
+
+        private static string EscapeCsvField(string field)
         {
             if (string.IsNullOrEmpty(field))
                 return string.Empty;
 
             // Ak pole obsahuje čiarku, úvodzovku alebo nový riadok, obaľujeme ho úvodzovkami
-            if (field.Contains(",") || field.Contains("\"") || field.Contains("\n"))
+            if (field.Contains(',') || field.Contains('"') || field.Contains('\n'))
             {
                 // Zdvojnásobíme všetky úvodzovky a obalíme celý reťazec úvodzovkami
                 return $"\"{field.Replace("\"", "\"\"")}\"";
@@ -373,15 +374,10 @@ namespace TestBenchTarget.WinUI3.Services
     /// <summary>
     /// Trieda pre dátové chyby
     /// </summary>
-    public class DataErrorEventArgs : EventArgs
+    /// 
+    public class DataErrorEventArgs(string message, Exception exception) : EventArgs
     {
-        public string Message { get; }
-        public Exception Exception { get; }
-
-        public DataErrorEventArgs(string message, Exception exception)
-        {
-            Message = message;
-            Exception = exception;
-        }
+        public string Message { get; } = message;
+        public Exception Exception { get; } = exception;
     }
 }

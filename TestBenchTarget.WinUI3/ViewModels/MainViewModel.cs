@@ -22,7 +22,7 @@ namespace TestBenchTarget.WinUI3.ViewModels
         public event EventHandler<EventArgs>? ExportDataRequested;
 
         // Properties
-        private CustomObservableCollection<DataItem> _dataItems = new CustomObservableCollection<DataItem>();
+        private CustomObservableCollection<DataItem> _dataItems = [];
         public CustomObservableCollection<DataItem> DataItems
         {
             get => _dataItems;
@@ -104,8 +104,8 @@ namespace TestBenchTarget.WinUI3.ViewModels
         public RelayCommand SaveCommand { get; }
         public RelayCommand DeleteCommand { get; }
         public RelayCommand OpenFolderCommand { get; }
-        public RelayCommand ClearFormCommand { get; }
-        public RelayCommand ClearListCommand { get; }
+        public RelayCommand ClearFormCommand { get; } = null!;
+        public RelayCommand ClearListCommand { get; } = null!;
         public RelayCommand ExportDataCommand { get; }
 
         public MainViewModel(DataService dataService)
@@ -116,13 +116,13 @@ namespace TestBenchTarget.WinUI3.ViewModels
             DataItems = _dataService.DataList;
 
             // Inicializácia príkazov
+            ClearFormCommand = new RelayCommand(ClearForm);
+            ClearListCommand = new RelayCommand(ClearList);
             AddCommand = new RelayCommand(AddData);
             LoadCommand = new RelayCommand(LoadData);
             SaveCommand = new RelayCommand(() => SaveData(showNotification: true));
             DeleteCommand = new RelayCommand(Delete, CanDelete);
             OpenFolderCommand = new RelayCommand(OpenFolder);
-            ClearFormCommand = new RelayCommand(ClearForm);
-            ClearListCommand = new RelayCommand(ClearList);
             ExportDataCommand = new RelayCommand(ExportData);
 
             // DEBUG: Overenie inicializácie príkazov
@@ -304,7 +304,7 @@ namespace TestBenchTarget.WinUI3.ViewModels
 
                 try
                 {
-                    ContentDialog confirmDialog = new ContentDialog
+                    ContentDialog confirmDialog = new()
                     {
                         XamlRoot = xamlRoot,
                         Title = "⚠️ Confirm List Deletion",
@@ -369,7 +369,7 @@ namespace TestBenchTarget.WinUI3.ViewModels
                     System.Diagnostics.Debug.WriteLine($"App found: {app != null}");
 
                     // Skúsime direct cast
-                    if (app.m_window != null)
+                    if (app?.m_window != null)
                     {
                         System.Diagnostics.Debug.WriteLine($"m_window type: {app.m_window.GetType().Name}");
 
@@ -471,11 +471,10 @@ namespace TestBenchTarget.WinUI3.ViewModels
                     return;
                 }
 
-                DateTime selectedDate;
 
                 // Skúsime konvertovať dátum podľa aktuálneho formátu
                 if (!DateTime.TryParseExact(_selectedDateString, _dateFormat, null,
-                    System.Globalization.DateTimeStyles.None, out selectedDate))
+                    System.Globalization.DateTimeStyles.None, out DateTime selectedDate))
                 {
                     selectedDate = DateTime.Now.Date;
                 }
@@ -568,7 +567,7 @@ namespace TestBenchTarget.WinUI3.ViewModels
         {
             try
             {
-                var folder = await _dataService.GetLocalFolderAsync();
+                var folder = await DataService.GetLocalFolderAsync();
                 await Launcher.LaunchFolderAsync(folder);
             }
             catch (Exception ex)
@@ -598,7 +597,7 @@ namespace TestBenchTarget.WinUI3.ViewModels
             // Ak je ContentDialog nevyhnutný, použijeme XamlRoot
             if (_xamlRoot != null)
             {
-                ContentDialog errorDialog = new ContentDialog
+                ContentDialog errorDialog = new()
                 {
                     XamlRoot = _xamlRoot,
                     Title = title,
@@ -618,11 +617,9 @@ namespace TestBenchTarget.WinUI3.ViewModels
                 // V WinUI 3 použiť priamo súborový systém
                 using (var fileStream = System.IO.File.Create(filePath))
                 {
-                    using (var writer = new System.IO.StreamWriter(fileStream))
-                    {
-                        string jsonData = JsonConvert.SerializeObject(DataItems, Newtonsoft.Json.Formatting.Indented);
-                        await writer.WriteAsync(jsonData);
-                    }
+                    using var writer = new System.IO.StreamWriter(fileStream);
+                    string jsonData = JsonConvert.SerializeObject(DataItems, Newtonsoft.Json.Formatting.Indented);
+                    await writer.WriteAsync(jsonData);
                 }
 
                 //ShowInfoBar("Úspech", $"Dáta boli exportované do: {System.IO.Path.GetFileName(filePath)}");
