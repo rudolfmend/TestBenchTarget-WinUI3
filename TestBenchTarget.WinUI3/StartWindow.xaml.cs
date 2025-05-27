@@ -275,7 +275,7 @@ namespace TestBenchTarget.WinUI3
         private async void PersonalDataDialog_PrimaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
         {
             // Navigate to GitHub Pages privacy policy
-            string privacyPolicyUrl = "https://rudolfmendzezof.github.io/testbench-target/privacy-policy";
+            string privacyPolicyUrl = "https://rudolfmend.github.io/TestBenchTarget-WinUI3/privacy-policy.html";
 
             try
             {
