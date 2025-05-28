@@ -134,10 +134,35 @@
             <li>Does not store any data outside the user's local device</li>
             <li>Does not use cookies or similar tracking technologies</li>
         </ul>
-
-        <div class="highlight">
-            <p>The only data that the application stores are the data entered by the user into the application's table, and these are <strong>stored locally</strong> on the user's device in the form of a JSON file in the Documents folder.</p>
-        </div>
+            
+                <h2>Data Storage</h2>
+                <div class="highlight">
+                    <p><strong>TestBench Target stores data in two local locations on your device:</strong></p>
+                </div>
+        
+                <div class="compliance-section">
+                    <h3>📁 Application Data Storage</h3>
+                    <ul>
+                        <li><strong>Automatic Save Location:</strong> Data entered by users is automatically saved to the application's private storage folder in Windows LocalState directory</li>
+                        <li><strong>File Location:</strong> <code>%LocalAppData%\Packages\[AppPackage]\LocalState\TestBenchTarget.json</code></li>
+                        <li><strong>Purpose:</strong> Preserving user data between application sessions</li>
+                        <li><strong>Access:</strong> Only accessible by the TestBench Target application and the user account</li>
+                    </ul>
+                </div>
+        
+                <div class="compliance-section">
+                    <h3>📤 User Export Location</h3>
+                    <ul>
+                        <li><strong>Manual Export Location:</strong> When users export data, files are saved to user-specified locations (typically Documents folder)</li>
+                        <li><strong>File Format:</strong> JSON format with user-defined filename</li>
+                        <li><strong>Purpose:</strong> User-initiated data backup and sharing</li>
+                        <li><strong>Control:</strong> User has full control over export location and timing</li>
+                    </ul>
+                </div>
+        
+                <div class="highlight">
+                    <p><strong>Important Note:</strong> All data storage is entirely local to your device. No data is transmitted to external servers or shared with third parties. Users maintain complete control over their data and can delete it at any time through the application interface or by removing the files directly.</p>
+                </div>            
 
         <h2><span class="legal-flag">🇪🇺</span>GDPR Compliance (European Union)</h2>
         <div class="compliance-section">
@@ -147,7 +172,7 @@
 
         <h2><span class="legal-flag">🌍</span>Global Privacy Law Compliance</h2>
         <div class="compliance-section">
-            <p>TestBench Target complies with major international privacy and data protection laws, including but not limited to:</p>
+            <p>TestBench Target application complies with major international privacy and data protection laws, including but not limited to:</p>
             <ul>
                 <li><strong>🇺🇸 United States:</strong>
                     <ul>
@@ -226,8 +251,6 @@
             <p>&copy; 2025 Rudolf Mendzezof. All rights reserved.</p>
             <p>TestBench Target - developer tool</p>
             <p><em>Last updated: May 27, 2025</em></p>
-            <!-- here will be a app logo  -->
-            <img src="Assets\AppIcon.png" alt="TestBench Target Logo" style="width: 100px; height: 100px;">
         </div>
     </div>
 </body>
