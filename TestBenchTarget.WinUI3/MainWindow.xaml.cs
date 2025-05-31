@@ -32,21 +32,25 @@ namespace TestBenchTarget.WinUI3
         {
             this.InitializeComponent();
 
-            // Nastavenie ve¾kosti a titulku okna
-            SetWindowProperties();
-
+            // KRITICKÉ: Vytvorenie ViewModel PRED nastavením DataContext
             _viewModel = new MainViewModel(new DataService());
 
-            // JEDNODUCHÉ RIEŠENIE: Nastavenie XamlRoot vždy cez delay
-            // Táto metóda zabezpeèí, že sa XamlRoot nastaví po úplnom naèítaní okna
-            _ = SetXamlRootDelayed();
-
-            // Nastavenie DataContext pre koreòový Grid
+            // DÔLEŽITÉ: V WinUI 3 nastavujeme DataContext na Content element, nie na Window
             if (this.Content is FrameworkElement rootContent)
             {
                 rootContent.DataContext = _viewModel;
-                System.Diagnostics.Debug.WriteLine("DataContext set to MainViewModel for root element");
+                System.Diagnostics.Debug.WriteLine("DataContext set to MainViewModel for root Grid element");
             }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("ERROR: Could not set DataContext - Content is not FrameworkElement");
+            }
+
+            // Nastavenie ve¾kosti a titulku okna
+            SetWindowProperties();
+
+            // XamlRoot setup
+            _ = SetXamlRootDelayed();
 
             // Pridanie KeyDown na root element
             if (this.Content is UIElement rootUIElement)
