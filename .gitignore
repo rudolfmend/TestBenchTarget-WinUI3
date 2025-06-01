@@ -1,0 +1,22 @@
+@"
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio files
+.vs/
+*.user
+*.suo
+*.sdf
+*.opensdf
+
+# WinUI specific
+Generated Files/
+"@ | Out-File -FilePath ".gitignore" -Encoding UTF8
