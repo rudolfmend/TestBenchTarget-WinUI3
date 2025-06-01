@@ -118,7 +118,7 @@ namespace TestBenchTarget.WinUI3.ViewModels
             // Inicializácia príkazov
             ClearFormCommand = new RelayCommand(ClearForm);
             ClearListCommand = new RelayCommand(ClearList);
-            AddCommand = new RelayCommand(AddData);
+            AddCommand = new RelayCommand(AddData, CanAddData);
             LoadCommand = new RelayCommand(LoadData);
             SaveCommand = new RelayCommand(() => SaveData(showNotification: true));
             DeleteCommand = new RelayCommand(Delete, CanDelete);
@@ -462,24 +462,40 @@ namespace TestBenchTarget.WinUI3.ViewModels
 
         private void AddData()
         {
+            System.Diagnostics.Debug.WriteLine("=== AddData START ===");
+
             try
             {
+                // Debug: Výpis stavu pred spracovaním
+                System.Diagnostics.Debug.WriteLine($"ProcedureText: '{ProcedureText}'");
+                System.Diagnostics.Debug.WriteLine($"PointsText: '{PointsText}'");
+                System.Diagnostics.Debug.WriteLine($"DelegateText: '{DelegateText}'");
+                System.Diagnostics.Debug.WriteLine($"SelectedDateString: '{SelectedDateString}'");
+                System.Diagnostics.Debug.WriteLine($"Current DataItems count: {DataItems.Count}");
+
                 // Kontrola, či je procedúra zadaná
                 if (string.IsNullOrWhiteSpace(ProcedureText))
                 {
+                    System.Diagnostics.Debug.WriteLine("AddData FAILED: ProcedureText is empty");
                     ShowInfoBar("Warning", "Please enter a procedure name.");
                     return;
                 }
 
+                System.Diagnostics.Debug.WriteLine("ProcedureText validation passed");
 
                 // Skúsime konvertovať dátum podľa aktuálneho formátu
                 if (!DateTime.TryParseExact(_selectedDateString, _dateFormat, null,
                     System.Globalization.DateTimeStyles.None, out DateTime selectedDate))
                 {
                     selectedDate = DateTime.Now.Date;
+                    System.Diagnostics.Debug.WriteLine($"Date parsing failed, using current date: {selectedDate}");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"Date parsed successfully: {selectedDate}");
                 }
 
-                // Vytvorenie nového DataItem z vstupných hodnôt
+                // Vytvorenie nového DataItem z vstupných hodnôv
                 var newItem = new DataItem
                 {
                     DateColumnValue = selectedDate,
@@ -489,31 +505,47 @@ namespace TestBenchTarget.WinUI3.ViewModels
                     DelegateColumnValue = DelegateText
                 };
 
+                System.Diagnostics.Debug.WriteLine($"New DataItem created: {newItem.ProcedureColumnValue}, Points: {newItem.PointsColumnValue}");
+
                 // DÔLEŽITÉ: Nastaviť FormattedDate podľa aktuálneho formátu
                 newItem.UpdateFormattedDate(_dateFormat);
+                System.Diagnostics.Debug.WriteLine($"FormattedDate set: {newItem.FormattedDate}");
 
                 // Ak je vybraná existujúca položka, aktualizujeme ju namiesto pridania novej
                 if (SelectedItem != null && DataItems.Contains(SelectedItem))
                 {
                     int index = DataItems.IndexOf(SelectedItem);
                     DataItems[index] = newItem;
+                    System.Diagnostics.Debug.WriteLine($"Item UPDATED at index {index}");
                     ShowInfoBar(" ", "Item updated.");
                 }
                 else
                 {
                     // Pridanie položky do kolekcie
                     DataItems.Add(newItem);
+                    System.Diagnostics.Debug.WriteLine($"Item ADDED, new count: {DataItems.Count}");
                     ShowInfoBar(" ", "Item added.");
                 }
 
                 // Po pridaní automaticky uložíme dáta
                 SaveData(showNotification: false);
+                System.Diagnostics.Debug.WriteLine("Data saved after adding item");
+
+                System.Diagnostics.Debug.WriteLine("=== AddData SUCCESS ===");
             }
             catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"=== AddData ERROR: {ex.Message} ===");
                 Debug.WriteLine($"Error adding item: {ex.Message}");
                 ShowInfoBar("Error", $"An error occurred while adding the item: {ex.Message}", InfoBarSeverity.Error);
             }
+        }
+
+        private bool CanAddData()
+        {
+            bool canAdd = !string.IsNullOrWhiteSpace(ProcedureText);
+            System.Diagnostics.Debug.WriteLine($"CanAddData called: {canAdd}, ProcedureText: '{ProcedureText}'");
+            return canAdd;
         }
 
         private async void LoadData()
