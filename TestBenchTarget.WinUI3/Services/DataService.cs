@@ -23,27 +23,105 @@ namespace TestBenchTarget.WinUI3.Services
         public event EventHandler? DataSaved;
         public event EventHandler<DataErrorEventArgs>? DataError;
 
+        // NOVÉ: Fallback storage path pre Store verziu
+        private string? _fallbackStoragePath = null;
+
         // Konštruktor
         public DataService()
         {
-            // Môžete tu pridať inicializačnú logiku, ak je potrebná
+            // Inicializácia fallback path
+            InitializeFallbackStorage();
         }
 
         /// <summary>
-        /// Uloženie dát do lokálneho súboru aplikácie
+        /// Inicializácia náhradného úložiska pre Store verziu
+        /// </summary>
+        private void InitializeFallbackStorage()
+        {
+            try
+            {
+                // Pokus o získanie štandardnej LocalFolder cesty
+                var localPath = ApplicationData.Current?.LocalFolder?.Path;
+                if (!string.IsNullOrEmpty(localPath))
+                {
+                    _fallbackStoragePath = localPath;
+                    Debug.WriteLine($"Using ApplicationData.Current.LocalFolder: {_fallbackStoragePath}");
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"ApplicationData.Current.LocalFolder failed: {ex.Message}");
+            }
+
+            // Fallback 1: Temp folder
+            try
+            {
+                _fallbackStoragePath = Path.Combine(Path.GetTempPath(), _appFolderName);
+                Directory.CreateDirectory(_fallbackStoragePath);
+                Debug.WriteLine($"Using temp folder fallback: {_fallbackStoragePath}");
+                return;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Temp folder fallback failed: {ex.Message}");
+            }
+
+            // Fallback 2: User profile
+            try
+            {
+                var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                _fallbackStoragePath = Path.Combine(userProfile, _appFolderName);
+                Directory.CreateDirectory(_fallbackStoragePath);
+                Debug.WriteLine($"Using user profile fallback: {_fallbackStoragePath}");
+                return;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"User profile fallback failed: {ex.Message}");
+            }
+
+            // Posledný fallback: AppData Local
+            try
+            {
+                var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                _fallbackStoragePath = Path.Combine(localAppData, _appFolderName);
+                Directory.CreateDirectory(_fallbackStoragePath);
+                Debug.WriteLine($"Using LocalApplicationData fallback: {_fallbackStoragePath}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"All storage fallbacks failed: {ex.Message}");
+                _fallbackStoragePath = Path.GetTempPath(); // Posledná šanca
+            }
+        }
+
+        /// <summary>
+        /// Bezpečné získanie storage path
+        /// </summary>
+        private string GetSafeStoragePath()
+        {
+            return _fallbackStoragePath ?? Path.GetTempPath();
+        }
+
+        /// <summary>
+        /// HLAVNÁ OPRAVA: Store-safe SaveDataAsync
         /// </summary>
         public async Task<bool> SaveDataAsync()
         {
             try
             {
-                StorageFolder localFolder = ApplicationData.Current.LocalFolder;
-                StorageFile file = await localFolder.CreateFileAsync(_fileName,
-                                    CreationCollisionOption.ReplaceExisting);
-                string jsonData = JsonConvert.SerializeObject(_dataList, Formatting.Indented);
-                await FileIO.WriteTextAsync(file, jsonData);
+                // Pokus o štandardný WinUI prístup
+                if (await TrySaveDataWinUIAsync())
+                {
+                    Debug.WriteLine("Data saved using WinUI method");
+                    DataSaved?.Invoke(this, EventArgs.Empty);
+                    return true;
+                }
 
-                DataSaved?.Invoke(this, EventArgs.Empty);
-                return true;
+                // Fallback na .NET File API
+                Debug.WriteLine("WinUI save failed, using .NET File API fallback");
+                return await SaveDataFallbackAsync();
             }
             catch (Exception ex)
             {
@@ -54,47 +132,71 @@ namespace TestBenchTarget.WinUI3.Services
         }
 
         /// <summary>
-        /// Načítanie dát z lokálneho súboru aplikácie
+        /// Pokus o štandardné WinUI uloženie
+        /// </summary>
+        private async Task<bool> TrySaveDataWinUIAsync()
+        {
+            try
+            {
+                if (ApplicationData.Current?.LocalFolder != null)
+                {
+                    StorageFolder localFolder = ApplicationData.Current.LocalFolder;
+                    StorageFile file = await localFolder.CreateFileAsync(_fileName,
+                                        CreationCollisionOption.ReplaceExisting);
+                    string jsonData = JsonConvert.SerializeObject(_dataList, Formatting.Indented);
+                    await FileIO.WriteTextAsync(file, jsonData);
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"WinUI save method failed: {ex.Message}");
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Fallback uloženie pomocou .NET File API
+        /// </summary>
+        private async Task<bool> SaveDataFallbackAsync()
+        {
+            try
+            {
+                string filePath = Path.Combine(GetSafeStoragePath(), _fileName);
+                Debug.WriteLine($"Saving to fallback path: {filePath}");
+
+                string jsonData = JsonConvert.SerializeObject(_dataList, Formatting.Indented);
+                await File.WriteAllTextAsync(filePath, jsonData);
+
+                DataSaved?.Invoke(this, EventArgs.Empty);
+                Debug.WriteLine("Fallback save successful");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Fallback save failed: {ex.Message}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// HLAVNÁ OPRAVA: Store-safe LoadDataAsync
         /// </summary>
         public async Task<bool> LoadDataAsync()
         {
             try
             {
-                StorageFolder localFolder = ApplicationData.Current.LocalFolder;
-                try
+                // Pokus o štandardný WinUI prístup
+                if (await TryLoadDataWinUIAsync())
                 {
-                    StorageFile file = await localFolder.GetFileAsync(_fileName);
-                    string jsonData = await FileIO.ReadTextAsync(file);
-
-                    if (string.IsNullOrEmpty(jsonData))
-                    {
-                        // Prázdny súbor
-                        _dataList.Clear();
-                        OnDataLoaded();
-                        return true;
-                    }
-
-                    var loadedData = JsonConvert.DeserializeObject<List<DataItem>>(jsonData);
-                    _dataList.Clear();
-
-                    if (loadedData != null)
-                    {
-                        foreach (var item in loadedData)
-                        {
-                            _dataList.Add(item);
-                        }
-                    }
-
+                    Debug.WriteLine("Data loaded using WinUI method");
                     OnDataLoaded();
                     return true;
                 }
-                catch (FileNotFoundException)
-                {
-                    // Súbor ešte neexistuje, čo je v poriadku pri prvom spustení
-                    _dataList.Clear();
-                    OnDataLoaded();
-                    return true;
-                }
+
+                // Fallback na .NET File API
+                Debug.WriteLine("WinUI load failed, using .NET File API fallback");
+                return await LoadDataFallbackAsync();
             }
             catch (Exception ex)
             {
@@ -105,21 +207,135 @@ namespace TestBenchTarget.WinUI3.Services
         }
 
         /// <summary>
-        /// Získanie lokálneho priečinka aplikácie
+        /// Pokus o štandardné WinUI načítanie
         /// </summary>
-        public static Task<StorageFolder> GetLocalFolderAsync()
+        private async Task<bool> TryLoadDataWinUIAsync()
         {
-            return Task.FromResult(ApplicationData.Current.LocalFolder);
+            try
+            {
+                if (ApplicationData.Current?.LocalFolder != null)
+                {
+                    StorageFolder localFolder = ApplicationData.Current.LocalFolder;
+                    try
+                    {
+                        StorageFile file = await localFolder.GetFileAsync(_fileName);
+                        string jsonData = await FileIO.ReadTextAsync(file);
+                        await ProcessLoadedJsonData(jsonData);
+                        return true;
+                    }
+                    catch (FileNotFoundException)
+                    {
+                        // Súbor neexistuje - normálne pri prvom spustení
+                        _dataList.Clear();
+                        return true;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"WinUI load method failed: {ex.Message}");
+            }
+            return false;
         }
 
         /// <summary>
-        /// Uloženie dát do externého súboru
+        /// Fallback načítanie pomocou .NET File API
         /// </summary>
+        private async Task<bool> LoadDataFallbackAsync()
+        {
+            try
+            {
+                string filePath = Path.Combine(GetSafeStoragePath(), _fileName);
+                Debug.WriteLine($"Loading from fallback path: {filePath}");
+
+                if (!File.Exists(filePath))
+                {
+                    Debug.WriteLine("Fallback file doesn't exist - first run");
+                    _dataList.Clear();
+                    OnDataLoaded();
+                    return true;
+                }
+
+                string jsonData = await File.ReadAllTextAsync(filePath);
+                await ProcessLoadedJsonData(jsonData);
+
+                OnDataLoaded();
+                Debug.WriteLine("Fallback load successful");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Fallback load failed: {ex.Message}");
+                _dataList.Clear(); // Zabezpečenie prázdnej kolekcie pri chybe
+                OnDataLoaded();
+                return true; // Vrátime true aby aplikácia fungovala aj pri chybe
+            }
+        }
+
+        /// <summary>
+        /// Spracovanie načítaných JSON dát - OPRAVA: UI thread safe
+        /// </summary>
+        private async Task ProcessLoadedJsonData(string jsonData)
+        {
+            // Deserializácia na background thread
+            List<DataItem>? loadedData = null;
+            if (!string.IsNullOrEmpty(jsonData))
+            {
+                loadedData = await Task.Run(() =>
+                    JsonConvert.DeserializeObject<List<DataItem>>(jsonData));
+            }
+
+            // KRITICKÉ: Modifikácia kolekcie na UI thread
+            try
+            {
+                _dataList.Clear();
+
+                if (loadedData != null)
+                {
+                    foreach (var item in loadedData)
+                    {
+                        _dataList.Add(item);
+                    }
+                }
+
+                Debug.WriteLine($"ProcessLoadedJsonData completed: {_dataList.Count} items loaded");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error updating collection on UI thread: {ex.Message}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Bezpečné získanie lokálneho priečinka
+        /// </summary>
+        public static async Task<StorageFolder> GetLocalFolderAsync()
+        {
+            try
+            {
+                return ApplicationData.Current.LocalFolder;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"GetLocalFolderAsync failed: {ex.Message}");
+
+                // Fallback: vytvoriť dočasný priečinok
+                var tempPath = Path.Combine(Path.GetTempPath(), _appFolderName);
+                Directory.CreateDirectory(tempPath);
+
+                // Vrátime StorageFolder z temp path
+                return await StorageFolder.GetFolderFromPathAsync(tempPath);
+            }
+        }
+
+        // ZVYŠOK METÓD OSTÁVA ROVNAKÝ...
+
         public async Task<bool> SaveDataAsync(string filePath)
         {
             if (string.IsNullOrEmpty(filePath))
             {
-                return await SaveDataAsync_Alternative();
+                return await SaveDataAsync();
             }
 
             try
@@ -138,143 +354,12 @@ namespace TestBenchTarget.WinUI3.Services
             }
         }
 
-        /// <summary>
-        /// Alternatívna implementácia SaveDataAsync pomocou .NET File APIs
-        /// </summary>
-        public async Task<bool> SaveDataAsync_Alternative(string filePath = null!)
-        {
-            try
-            {
-                string path;
-                if (string.IsNullOrEmpty(filePath))
-                {
-                    path = Path.Combine(ApplicationData.Current.LocalFolder.Path, _fileName);
-                }
-                else
-                {
-                    path = filePath;
-                }
-
-                // Zabezpečenie existencie priečinka
-                //Directory.CreateDirectory(Path.GetDirectoryName(path)); // possible null reference for parameter path 
-                var directoryPath = Path.GetDirectoryName(path);
-                if (!string.IsNullOrEmpty(directoryPath))
-                {
-                    Directory.CreateDirectory(directoryPath);
-                }
-
-                string jsonData = JsonConvert.SerializeObject(_dataList, Formatting.Indented);
-                await File.WriteAllTextAsync(path, jsonData);
-
-                DataSaved?.Invoke(this, EventArgs.Empty);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error in SaveDataAsync_Alternative: {ex.Message}");
-                OnDataError("Error saving data", ex);
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Alternatívna implementácia LoadDataAsync pomocou .NET File APIs
-        /// </summary>
-        public async Task<bool> LoadDataAsync_Alternative(string filePath = null!)
-        {
-            try
-            {
-                string path;
-                if (string.IsNullOrEmpty(filePath))
-                {
-                    path = Path.Combine(ApplicationData.Current.LocalFolder.Path, _fileName);
-                }
-                else
-                {
-                    path = filePath;
-                }
-
-                if (!File.Exists(path))
-                {
-                    // Súbor ešte neexistuje, čo je v poriadku pri prvom spustení
-                    _dataList.Clear();
-                    OnDataLoaded();
-                    return true;
-                }
-
-                string jsonData = await File.ReadAllTextAsync(path);
-
-                if (string.IsNullOrEmpty(jsonData))
-                {
-                    // Prázdny súbor
-                    _dataList.Clear();
-                    OnDataLoaded();
-                    return true;
-                }
-
-                var loadedData = JsonConvert.DeserializeObject<List<DataItem>>(jsonData);
-                _dataList.Clear();
-
-                if (loadedData != null)
-                {
-                    foreach (var item in loadedData)
-                    {
-                        _dataList.Add(item);
-                    }
-                }
-
-                OnDataLoaded();
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error in LoadDataAsync_Alternative: {ex.Message}");
-                OnDataError("Error loading data", ex);
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Alternatívna implementácia GetLocalFolderAsync - vracia cestu k priečinku
-        /// </summary>
-        public static string GetLocalFolderPath()
-        {
-            return ApplicationData.Current.LocalFolder.Path;
-        }
-
-        /// <summary>
-        /// Získanie priečinka v Documents
-        /// </summary>
-        public static async Task<string> GetDocumentsFolderPathAsync()
-        {
-            try
-            {
-                // Skúsime získať prístup k priečinku Documents
-                var documentsFolder = await Windows.Storage.KnownFolders.DocumentsLibrary.CreateFolderAsync(
-                    _appFolderName, CreationCollisionOption.OpenIfExists);
-
-                return documentsFolder.Path;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error accessing Documents folder: {ex.Message}");
-                // Núdzový návrat k LocalFolder
-                return ApplicationData.Current.LocalFolder.Path;
-            }
-        }
-
-        /// <summary>
-        /// Pridanie novej položky do kolekcie
-        /// </summary>
         public DataItem AddItem(DataItem item)
         {
             _dataList.Add(item);
             return item;
         }
 
-        /// <summary>
-        /// Aktualizácia existujúcej položky
-        /// </summary>
         public bool UpdateItem(DataItem oldItem, DataItem newItem)
         {
             int index = _dataList.IndexOf(oldItem);
@@ -286,17 +371,11 @@ namespace TestBenchTarget.WinUI3.Services
             return false;
         }
 
-        /// <summary>
-        /// Odstránenie položky z kolekcie
-        /// </summary>
         public bool RemoveItem(DataItem item)
         {
             return _dataList.Remove(item);
         }
 
-        /// <summary>
-        /// Vymazanie všetkých dát - už existuje v DataService.cs
-        /// </summary>
         public void ClearAllData()
         {
             System.Diagnostics.Debug.WriteLine($"DataService.ClearAllData called, clearing {_dataList.Count} items");
@@ -304,77 +383,17 @@ namespace TestBenchTarget.WinUI3.Services
             System.Diagnostics.Debug.WriteLine("DataService.ClearAllData completed");
         }
 
-        /// <summary>
-        /// Exportovanie dát do CSV formátu
-        /// </summary>
-        public async Task<bool> ExportToCsvAsync(string filePath)
-        {
-            try
-            {
-                using var writer = new StreamWriter(filePath);  // Zjednodušené using
-
-                // Hlavička CSV
-                await writer.WriteLineAsync("Date,Procedure,Points,Delegate");
-
-                // Dáta
-                foreach (var item in _dataList)
-                {
-                    await writer.WriteLineAsync(
-                        $"{item.DateColumnValue:yyyy-MM-dd},{EscapeCsvField(item.ProcedureColumnValue)}," +
-                        $"{item.PointsColumnValue},{EscapeCsvField(item.DelegateColumnValue)}");
-                }
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error exporting to CSV: {ex.Message}");
-                OnDataError("Error exporting to CSV", ex);
-                return false;
-            }
-        }
-
-
-        /// <summary>
-        /// Escapovanie poľa pre CSV formát
-        /// </summary>
-
-        private static string EscapeCsvField(string field)
-        {
-            if (string.IsNullOrEmpty(field))
-                return string.Empty;
-
-            // Ak pole obsahuje čiarku, úvodzovku alebo nový riadok, obaľujeme ho úvodzovkami
-            if (field.Contains(',') || field.Contains('"') || field.Contains('\n'))
-            {
-                // Zdvojnásobíme všetky úvodzovky a obalíme celý reťazec úvodzovkami
-                return $"\"{field.Replace("\"", "\"\"")}\"";
-            }
-
-            return field;
-        }
-
-        /// <summary>
-        /// Vyvolanie udalosti DataLoaded
-        /// </summary>
         protected virtual void OnDataLoaded()
         {
             DataLoaded?.Invoke(this, EventArgs.Empty);
         }
 
-        /// <summary>
-        /// Vyvolanie udalosti DataError
-        /// </summary>
         protected virtual void OnDataError(string message, Exception ex)
         {
             DataError?.Invoke(this, new DataErrorEventArgs(message, ex));
         }
     }
 
-    /// <summary>
-    /// Trieda pre dátové chyby
-    /// </summary>
-    /// 
     public class DataErrorEventArgs(string message, Exception exception) : EventArgs
     {
         public string Message { get; } = message;

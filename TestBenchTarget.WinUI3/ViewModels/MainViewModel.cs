@@ -5,10 +5,13 @@ using Microsoft.UI.Xaml.Controls;
 using Newtonsoft.Json;
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Threading.Tasks;
 using TestBenchTarget.WinUI3.Models;
 using TestBenchTarget.WinUI3.Services;
+using Windows.Storage;
 using Windows.System;
+using Microsoft.UI.Dispatching;
 
 namespace TestBenchTarget.WinUI3.ViewModels
 {
@@ -125,17 +128,121 @@ namespace TestBenchTarget.WinUI3.ViewModels
             OpenFolderCommand = new RelayCommand(OpenFolder);
             ExportDataCommand = new RelayCommand(ExportData);
 
-            // DEBUG: Overenie inicializácie príkazov
-            System.Diagnostics.Debug.WriteLine($"ClearFormCommand initialized: {ClearFormCommand != null}");
-            System.Diagnostics.Debug.WriteLine($"ClearListCommand initialized: {ClearListCommand != null}");
+            // Debug info o UI thread
+            System.Diagnostics.Debug.WriteLine($"MainViewModel constructor - UI Thread: {Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread() != null}");
+            System.Diagnostics.Debug.WriteLine($"DataItems count after assignment: {DataItems.Count}");
 
-            // Test či sa dajú vykonať
-            System.Diagnostics.Debug.WriteLine($"ClearFormCommand CanExecute: {ClearFormCommand?.CanExecute(null)}");
-            System.Diagnostics.Debug.WriteLine($"ClearListCommand CanExecute: {ClearListCommand?.CanExecute(null)}");
-
-            // Inicializácia načítania dát
-            _ = InitializeAsync();
+            // JEDINÉ volanie SafeInitializeAsync()
+            _ = SafeInitializeAsync();
         }
+
+        private async Task SafeInitializeAsync()
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("=== SafeInitializeAsync START ===");
+
+                // Diagnostika
+                DiagnoseDeveloperMode();
+
+                // OPRAVENÉ: Správny namespace pre DispatcherQueue
+                var currentDispatcher = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+                var isUIThread = currentDispatcher != null;
+                System.Diagnostics.Debug.WriteLine($"SafeInitializeAsync running on UI thread: {isUIThread}");
+
+                if (isUIThread)
+                {
+                    // Na UI thread - môžeme bezpečne načítať dáta
+                    System.Diagnostics.Debug.WriteLine("Loading data on UI thread");
+                    await _dataService.LoadDataAsync();
+                }
+                else
+                {
+                    // Nie sme na UI thread - potrebujeme sa prepnúť
+                    System.Diagnostics.Debug.WriteLine("Not on UI thread - dispatching to UI thread");
+
+                    // OPRAVENÉ: Správny spôsob získania dispatcher-a
+                    Microsoft.UI.Dispatching.DispatcherQueue? dispatcher = null;
+
+                    try
+                    {
+                        // Pokus o získanie dispatcher-a z App
+                        if (Application.Current is App app && app.m_window != null)
+                        {
+                            // OPRAVENÉ: Správny prístup k DispatcherQueue
+                            if (app.m_window.Content is FrameworkElement element)
+                            {
+                                dispatcher = element.DispatcherQueue;
+                                System.Diagnostics.Debug.WriteLine("Dispatcher obtained from app.m_window.Content");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Failed to get dispatcher from app window: {ex.Message}");
+                    }
+
+                    // Fallback na current thread dispatcher
+                    if (dispatcher == null)
+                    {
+                        try
+                        {
+                            dispatcher = currentDispatcher;
+                            System.Diagnostics.Debug.WriteLine("Using current thread dispatcher as fallback");
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Failed to get current thread dispatcher: {ex.Message}");
+                        }
+                    }
+
+                    if (dispatcher != null)
+                    {
+                        var dispatched = dispatcher.TryEnqueue(async () =>
+                        {
+                            try
+                            {
+                                await _dataService.LoadDataAsync();
+                                System.Diagnostics.Debug.WriteLine("Data loaded via dispatcher");
+                            }
+                            catch (Exception dispatchEx)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Dispatched load failed: {dispatchEx.Message}");
+                            }
+                        });
+
+                        if (!dispatched)
+                        {
+                            System.Diagnostics.Debug.WriteLine("Failed to dispatch to UI thread - loading directly");
+                            await _dataService.LoadDataAsync();
+                        }
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine("No dispatcher available - loading on current thread");
+                        await _dataService.LoadDataAsync();
+                    }
+                }
+
+                System.Diagnostics.Debug.WriteLine($"SafeInitializeAsync completed, DataItems count: {DataItems.Count}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"SafeInitializeAsync error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
+
+                // Jednoduchý fallback bez dispatcher problémov
+                try
+                {
+                    ShowInfoBar("Warning", "Data loading failed, application may not function properly.", InfoBarSeverity.Warning);
+                }
+                catch (Exception showInfoEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"ShowInfoBar fallback failed: {showInfoEx.Message}");
+                }
+            }
+        }
+
 
         /// <summary>
         /// Bezpečné vymazanie kolekcie s UI thread safety
@@ -447,19 +554,6 @@ namespace TestBenchTarget.WinUI3.ViewModels
             }
         }
 
-        private async Task InitializeAsync()
-        {
-            try
-            {
-                await _dataService.LoadDataAsync();
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error initializing data: {ex.Message}");
-                await ShowErrorInfoBar("Error initializing", ex.Message);
-            }
-        }
-
         private void AddData()
         {
             System.Diagnostics.Debug.WriteLine("=== AddData START ===");
@@ -611,11 +705,80 @@ namespace TestBenchTarget.WinUI3.ViewModels
 
         private static void ShowInfoBar(string title, string message, InfoBarSeverity severity = InfoBarSeverity.Informational)
         {
-            // InfoBar sa zobrazí prostredníctvom funkcie v MainWindow
-            // Kontrola či App.Current je typu App a bezpečný prístup k m_window
-            if (Application.Current is App app && app.m_window is MainWindow mainWindow)
+            try
             {
-                mainWindow.ShowInfoBar(title, message, severity);
+                // Pokus o štandardný prístup cez Application.Current
+                if (Application.Current is App app && app.m_window is MainWindow mainWindow)
+                {
+                    mainWindow.ShowInfoBar(title, message, severity);
+                    System.Diagnostics.Debug.WriteLine($"InfoBar shown via MainWindow: {title} - {message}");
+                    return;
+                }
+
+                // Fallback: Log do Debug konzoly
+                System.Diagnostics.Debug.WriteLine($"InfoBar fallback - {severity}: {title} - {message}");
+
+                // Dodatočný fallback: Console output (ak je Debug nedostupný)
+                Console.WriteLine($"[{severity}] {title}: {message}");
+            }
+            catch (Exception ex)
+            {
+                // Posledný fallback: len debug output
+                System.Diagnostics.Debug.WriteLine($"ShowInfoBar failed: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Original message: {title} - {message}");
+            }
+        }
+
+        public void DiagnoseDeveloperMode()
+        {
+            try
+            {
+                // Správna diagnostika pre WinUI 3
+                var appDataPath = ApplicationData.Current?.LocalFolder?.Path ?? "NULL";
+                var currentUser = Environment.UserName;
+                var appVersion = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "Unknown";
+
+                System.Diagnostics.Debug.WriteLine($"=== DEVELOPER MODE DIAGNOSTICS ===");
+                System.Diagnostics.Debug.WriteLine($"AppData Path: {appDataPath}");
+                System.Diagnostics.Debug.WriteLine($"Current User: {currentUser}");
+                System.Diagnostics.Debug.WriteLine($"Application.Current: {Application.Current != null}");
+                System.Diagnostics.Debug.WriteLine($"App Version: {appVersion}");
+
+                // Test prístupu k ApplicationData
+                try
+                {
+                    if (ApplicationData.Current != null)
+                    {
+                        var localFolder = ApplicationData.Current.LocalFolder;
+                        System.Diagnostics.Debug.WriteLine($"LocalFolder accessible: {localFolder != null}");
+                        System.Diagnostics.Debug.WriteLine($"LocalFolder path: {localFolder?.Path ?? "NULL"}");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine("ApplicationData.Current is NULL - Store sandbox issue");
+                    }
+                }
+                catch (Exception storageEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"ApplicationData access failed: {storageEx.Message}");
+                }
+
+                // Test file system prístupu
+                try
+                {
+                    var tempPath = Path.GetTempPath();
+                    System.Diagnostics.Debug.WriteLine($"Temp path accessible: {tempPath}");
+                }
+                catch (Exception tempEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Temp path access failed: {tempEx.Message}");
+                }
+
+                System.Diagnostics.Debug.WriteLine($"=== END DIAGNOSTICS ===");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Diagnostics failed: {ex.Message}");
             }
         }
 
