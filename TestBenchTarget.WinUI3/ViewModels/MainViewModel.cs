@@ -11,7 +11,6 @@ using TestBenchTarget.WinUI3.Models;
 using TestBenchTarget.WinUI3.Services;
 using Windows.Storage;
 using Windows.System;
-using Microsoft.UI.Dispatching;
 
 namespace TestBenchTarget.WinUI3.ViewModels
 {
@@ -115,10 +114,8 @@ namespace TestBenchTarget.WinUI3.ViewModels
         {
             _dataService = dataService ?? throw new ArgumentNullException(nameof(dataService));
 
-            // Načítanie dát pri inicializácii 
             DataItems = _dataService.DataList;
 
-            // Inicializácia príkazov
             ClearFormCommand = new RelayCommand(ClearForm);
             ClearListCommand = new RelayCommand(ClearList);
             AddCommand = new RelayCommand(AddData, CanAddData);
@@ -135,7 +132,6 @@ namespace TestBenchTarget.WinUI3.ViewModels
             // JEDINÉ volanie SafeInitializeAsync()
             _ = SafeInitializeAsync();
         }
-
         private async Task SafeInitializeAsync()
         {
             try
