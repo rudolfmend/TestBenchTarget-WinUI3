@@ -3,72 +3,239 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
   <title>TestBench Target Privacy Policy</title>
   <style>
     :root {
       color-scheme: light dark;
-      font-family: "Segoe UI", Arial, sans-serif;
-      line-height: 1.6;
+      --bg: #f4f7fb;
+      --surface: rgba(255, 255, 255, 0.94);
+      --surface-soft: #eef5ff;
+      --text: #162033;
+      --muted: #5f6b7a;
+      --accent: #2563eb;
+      --accent-strong: #1746a2;
+      --border: #dbe5f2;
+      --shadow: 0 20px 55px rgba(32, 64, 112, 0.14);
+      --code-bg: #edf2f8;
     }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0c111b;
+        --surface: rgba(20, 28, 42, 0.96);
+        --surface-soft: #16233a;
+        --text: #e9eef7;
+        --muted: #a8b3c5;
+        --accent: #72a7ff;
+        --accent-strong: #a9c9ff;
+        --border: #29384f;
+        --shadow: 0 24px 60px rgba(0, 0, 0, 0.34);
+        --code-bg: #202b3d;
+      }
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
     body {
-      max-width: 860px;
-      margin: 0 auto;
-      padding: 48px 24px 64px;
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.68;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(37, 99, 235, 0.12), transparent 34rem),
+        var(--bg);
     }
-    h1, h2 { line-height: 1.25; }
-    h1 { margin-bottom: 0.25rem; }
-    .updated { opacity: 0.75; margin-top: 0; }
-    section { margin-top: 2rem; }
-    a { color: inherit; }
+
+    .page {
+      width: min(960px, calc(100% - 32px));
+      margin: 48px auto;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 42px 44px 34px;
+      border: 1px solid var(--border);
+      border-radius: 22px 22px 0 0;
+      background: linear-gradient(135deg, var(--surface), var(--surface-soft));
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      top: -80px;
+      right: -70px;
+      width: 230px;
+      height: 230px;
+      border-radius: 50%;
+      background: rgba(37, 99, 235, 0.10);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 12px;
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--accent-strong);
+      font-size: 0.82rem;
+      font-weight: 650;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      position: relative;
+      z-index: 1;
+      margin: 0;
+      max-width: 720px;
+      font-size: clamp(2rem, 4vw, 3rem);
+      line-height: 1.12;
+      letter-spacing: -0.035em;
+    }
+
+    .updated {
+      position: relative;
+      z-index: 1;
+      margin: 14px 0 0;
+      color: var(--muted);
+      font-size: 0.96rem;
+    }
+
+    main {
+      padding: 18px 44px 42px;
+      border: 1px solid var(--border);
+      border-top: 0;
+      border-radius: 0 0 22px 22px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    section {
+      padding: 26px 0 22px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    section:last-child {
+      padding-bottom: 6px;
+      border-bottom: 0;
+    }
+
+    h2 {
+      margin: 0 0 12px;
+      color: var(--accent-strong);
+      font-size: 1.26rem;
+      line-height: 1.3;
+      letter-spacing: -0.012em;
+    }
+
+    p {
+      margin: 0 0 12px;
+    }
+
+    p:last-child { margin-bottom: 0; }
+
+    code {
+      padding: 0.15em 0.42em;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--code-bg);
+      font-family: "Cascadia Code", Consolas, monospace;
+      font-size: 0.92em;
+    }
+
+    a {
+      color: var(--accent);
+      font-weight: 600;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 3px;
+    }
+
+    a:hover { color: var(--accent-strong); }
+
+    footer {
+      margin-top: 18px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.86rem;
+    }
+
+    @media (max-width: 640px) {
+      .page {
+        width: min(100% - 20px, 960px);
+        margin: 18px auto 28px;
+      }
+
+      .hero { padding: 30px 24px 26px; }
+      main { padding: 12px 24px 30px; }
+      section { padding: 22px 0 18px; }
+    }
   </style>
 </head>
 <body>
-  <h1>Privacy Policy for TestBench Target</h1>
-  <p class="updated"><strong>Last updated:</strong> August 16, 2026</p>
+  <div class="page">
+    <header class="hero">
+      <p class="eyebrow">TestBench Target</p>
+      <h1>Privacy Policy</h1>
+      <p class="updated"><strong>Last updated:</strong> August 16, 2026</p>
+    </header>
 
-  <section>
-    <h2>Overview</h2>
-    <p>TestBench Target is a Windows test application designed for developers and testers who need a predictable target for UI automation, accessibility, monitoring, and interaction testing.</p>
-    <p>The application does not use analytics, advertising, tracking technologies, or a remote backend. It does not require an account, and it does not transmit personal data to the developer or to a remote service.</p>
-  </section>
+    <main>
+      <section>
+        <h2>Overview</h2>
+        <p>TestBench Target is a Windows test application designed for developers and testers who need a predictable target for UI automation, accessibility, monitoring, and interaction testing.</p>
+        <p>The application does not use analytics, advertising, tracking technologies, or a remote backend. It does not require an account, and it does not transmit personal data to the developer or to a remote service.</p>
+      </section>
 
-  <section>
-    <h2>Local operation and data</h2>
-    <p>TestBench Target operates locally on the user's Windows device. The Data Entry functionality may save data locally in the application's Windows LocalState storage.</p>
-    <p>Users may choose to enter real personal information into test fields, but the application is intended for testing purposes and the use of synthetic or non-sensitive test data is recommended.</p>
-  </section>
+      <section>
+        <h2>Local operation and data</h2>
+        <p>TestBench Target operates locally on the user's Windows device. The Data Entry functionality may save data locally in the application's Windows LocalState storage.</p>
+        <p>Users may choose to enter real personal information into test fields, but the application is intended for testing purposes and the use of synthetic or non-sensitive test data is recommended.</p>
+      </section>
 
-  <section>
-    <h2>Diagnostic logging</h2>
-    <p>The application may create a local diagnostic log named <code>TestBenchTarget.log</code>. The log is intended to support troubleshooting and repeatable testing.</p>
-    <p>The log may contain application events, diagnostic information, operation results, selected control values, text lengths or counts, and error details. TestBench Target is not designed to record the full contents of free-text fields or password fields in the diagnostic log.</p>
-    <p>The diagnostic log remains on the local device and is not automatically transmitted to the developer or to any remote service. A user may choose to export or share diagnostic information manually.</p>
-  </section>
+      <section>
+        <h2>Diagnostic logging</h2>
+        <p>The application may create a local diagnostic log named <code>TestBenchTarget.log</code>. The log is intended to support troubleshooting and repeatable testing.</p>
+        <p>The log may contain application events, diagnostic information, operation results, selected control values, text lengths or counts, and error details. TestBench Target is not designed to record the full contents of free-text fields or password fields in the diagnostic log.</p>
+        <p>The diagnostic log remains on the local device and is not automatically transmitted to the developer or to any remote service. A user may choose to export or share diagnostic information manually.</p>
+      </section>
 
-  <section>
-    <h2>Network access and third-party services</h2>
-    <p>TestBench Target does not use a remote backend, telemetry service, analytics service, advertising network, or user-tracking service.</p>
-    <p>The application may open a privacy-policy webpage or another external webpage only as a result of an explicit user action. The external site or browser used to display such a page may be subject to its own privacy practices.</p>
-  </section>
+      <section>
+        <h2>Network access and third-party services</h2>
+        <p>TestBench Target does not use a remote backend, telemetry service, analytics service, advertising network, or user-tracking service.</p>
+        <p>The application may open a privacy-policy webpage or another external webpage only as a result of an explicit user action. The external site or browser used to display such a page may be subject to its own privacy practices.</p>
+      </section>
 
-  <section>
-    <h2>Data retention and deletion</h2>
-    <p>Locally stored application data and diagnostic information remain on the user's device until removed by the user, by application functionality, or as part of uninstalling or resetting the application, subject to normal Windows behavior.</p>
-  </section>
+      <section>
+        <h2>Data retention and deletion</h2>
+        <p>Locally stored application data and diagnostic information remain on the user's device until removed by the user, by application functionality, or as part of uninstalling or resetting the application, subject to normal Windows behavior.</p>
+      </section>
 
-  <section>
-    <h2>Children's privacy</h2>
-    <p>TestBench Target is a general-purpose developer and testing utility. It does not intentionally collect personal information from children or from any other users.</p>
-  </section>
+      <section>
+        <h2>Children's privacy</h2>
+        <p>TestBench Target is a general-purpose developer and testing utility. It does not intentionally collect personal information from children or from any other users.</p>
+      </section>
 
-  <section>
-    <h2>Changes to this policy</h2>
-    <p>This privacy policy may be updated if the application's functionality or data practices change. The current version will be published at this location.</p>
-  </section>
+      <section>
+        <h2>Changes to this policy</h2>
+        <p>This privacy policy may be updated if the application's functionality or data practices change. The current version will be published at this location.</p>
+      </section>
 
-  <section>
-    <h2>Contact</h2>
-    <p>For privacy-related questions concerning TestBench Target, contact <a href="mailto:info@offisen.app">info@offisen.app</a>.</p>
-  </section>
+      <section>
+        <h2>Contact</h2>
+        <p>For privacy-related questions concerning TestBench Target, contact <a href="mailto:info@offisen.app">info@offisen.app</a>.</p>
+      </section>
+    </main>
+
+    <footer>TestBench Target · Privacy Policy</footer>
+  </div>
 </body>
 </html>
